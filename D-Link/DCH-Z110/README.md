@@ -8,4 +8,4 @@ How to install:
 - Click create, then publish.
 - Enable inclusion mode on DCH-Z110 (Press tamper key three times within 1.5 seconds).
 - Start Connect New Device in SmartThings mobile app.
-- If thing is not recognised as DCH-Z110 go to My Devices in online IDE and change device type for the new thing to mydlink™ Home Door/Window Sensor.
+- If thing is not recognised as mydlink™ Home Door/Window Sensor go to My Devices in online IDE and change device type for the new thing to mydlink™ Home Door/Window Sensor.
