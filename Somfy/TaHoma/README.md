@@ -1,0 +1,13 @@
+How to install:
+- Log in to https://ide.smartthings.com
+- Open My Device Handlers.
+- Click on Create New Device Handler button.
+- Select From Code.
+- Copy the raw version of TaHomaRollerShutter.DeviceType.groovy into text area in SmartThings IDE.
+- Click create, then publish.
+- Open My SmartApps.
+- Click on New SmartApp button.
+- Select From Code.
+- Copy the raw version of TaHomaBySomfy.SmartApp.groovy into text area in SmartThings IDE.
+- Click Create, then Publish.
+- In mobile app open Marketplace -> SmartApps -> My Apps, tap TaHoma® by Somfy and follow instructions.
