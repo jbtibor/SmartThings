@@ -11,5 +11,5 @@ How to install:
 - If thing is not recognised as mydlink™ Home Door/Window Sensor go to My Devices in online IDE and change device type for the new thing to mydlink™ Home Door/Window Sensor.
 
 
-Notes
+**NOTES**
 Illuminance is reported as percentage (%), not lux. Unfortunately I don't have the formula how this percentage is calculated.
