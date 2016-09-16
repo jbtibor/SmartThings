@@ -286,7 +286,7 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 			log.debug "Unknown contact event '${cmd.event}'."
 		}
 
-		if (events) {
+		if (events.size() > 0) {
 			def dateTime = new Date()
 			def sensorStateChangedDate = dateTime.format("yyyy-MM-dd HH:mm:ss", location.timeZone)
 			events << createEvent(name: "sensorStateChangedDate", value: sensorStateChangedDate, descriptionText: "$device.displayName open/close state changed at $sensorStateChangedDate.", translatable: true)
