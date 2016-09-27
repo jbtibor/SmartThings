@@ -380,15 +380,15 @@ def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelR
 	return events
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.wakeupv1.WakeUpNotification cmd) {
-	log.debug "zwaveEvent(physicalgraph.zwave.commands.wakeupv1.WakeUpNotification $cmd)"
+def zwaveEvent(physicalgraph.zwave.commands.wakeupv2.WakeUpNotification cmd) {
+	log.debug "zwaveEvent(physicalgraph.zwave.commands.wakeupv2.WakeUpNotification $cmd)"
 
 	def results = []
 
 	results << createEvent(descriptionText: "${device.displayName} woke up", isStateChange: false)
 
 	if (!state.MSR) {
-		results << zwave.wakeUpV1.wakeUpIntervalSet(seconds: 4 * 3600, nodeid: zwaveHubNodeId).format()
+		results << zwave.wakeUpV2.wakeUpIntervalSet(seconds: 4 * 3600, nodeid: zwaveHubNodeId).format()
 		results << zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
 		results << "delay 1200"
 	}
@@ -396,7 +396,7 @@ def zwaveEvent(physicalgraph.zwave.commands.wakeupv1.WakeUpNotification cmd) {
 	if (!state.lastbat || now() - state.lastbat > 53 * 60 * 60 * 1000) {
 		results << batteryGetCommand()
 	} else {
-		results << zwave.wakeUpV1.wakeUpNoMoreInformation().format()
+		results << zwave.wakeUpV2.wakeUpNoMoreInformation().format()
 	}
 
 	return results
