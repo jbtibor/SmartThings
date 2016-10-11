@@ -276,19 +276,24 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 	def events = []
 
 	if (cmd.notificationType == 0x06) {
-		def dateTime = new Date()
-		def sensorStateChangedDate = dateTime.format("yyyy-MM-dd HH:mm:ss", location.timeZone)
+		def currentValue = device.currentValue("contact")
 
 		if (cmd.event == 0x16) {
 			log.debug "open"
 			events << createEvent(name: "contact", value: "open", descriptionText: "$device.displayName is open.", translatable: true)
-			events << createEvent(name: "sensorStateChangedDate", value: sensorStateChangedDate, descriptionText: "$device.displayName open/close state changed at $sensorStateChangedDate.", translatable: true)
+			openCloseChanged = currentValue != "open"
 		} else if (cmd.event == 0x17) {
-			log.debug "close"
+			log.debug "closed"
 			events << createEvent(name: "contact", value: "closed", descriptionText: "$device.displayName is closed.", translatable: true)
-			events << createEvent(name: "sensorStateChangedDate", value: sensorStateChangedDate, descriptionText: "$device.displayName open/close state changed at $sensorStateChangedDate.", translatable: true)
+			openCloseChanged = currentValue != "closed"
 		} else {
 			log.debug "Unknown contact event '${cmd.event}'."
+		}
+
+		if (openCloseChanged) {
+			def dateTime = new Date()
+			def sensorStateChangedDate = dateTime.format("yyyy-MM-dd HH:mm:ss", location.timeZone)
+			events << createEvent(name: "sensorStateChangedDate", value: sensorStateChangedDate, descriptionText: "$device.displayName open/close state changed at $sensorStateChangedDate.", translatable: true)
 		}
 	} else if (cmd.notificationType == 0x07) {
 		if (cmd.event == 0x03) {
