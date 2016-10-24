@@ -274,6 +274,7 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 	log.debug "zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport $cmd)"
 
 	def events = []
+	def openCloseChanged = false
 
 	if (cmd.notificationType == 0x06) {
 		def currentValue = device.currentValue("contact")
