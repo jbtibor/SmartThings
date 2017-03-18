@@ -4,6 +4,7 @@ How to install:
 - Click on Create New Device Handler button.
 - Select From Code.
 - Copy the raw version of WirelessSensorTag.DeviceType.groovy into text area in SmartThings IDE.
+- Create and insert your own Wireless Sensor Tags OAuth Client ID and Secret and replace TODO with your own values. http://wirelesstag.net/eth/oauth2_apps.html
 - Click Create, then publish.
 - Open My SmartApps.
 - Click on New SmartApp button.
