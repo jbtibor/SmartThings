@@ -11,3 +11,4 @@ How to install:
 - Copy the raw version of WirelessSensorTags.SmartApp.groovy into text area in SmartThings IDE.
 - Click Create, then Publish.
 - In mobile app open Marketplace -> SmartApps -> My Apps, tap Wireless Sensor Tags and follow instructions.
+
