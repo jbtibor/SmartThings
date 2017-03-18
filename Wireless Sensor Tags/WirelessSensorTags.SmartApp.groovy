@@ -51,8 +51,8 @@ def getCloudConnectedDeviceName()	{ "Wireless Sensor Tags" }
 def getCloudApiEndpoint()			{ "https://www.mytaglist.com/ethClient.asmx/" }
 def getCloudOauthAuthorizeUrl()		{ "https://www.mytaglist.com/oauth2/authorize.aspx" }
 def getCloudOauthTokenUrl()			{ "https://www.mytaglist.com/oauth2/access_token.aspx" }
-def getOauthClientId()				{ "0e5b195a-b5a6-42af-ba17-18aa1c968bc0" }
-def getOauthClientSecret()			{ "bb96758c-fbab-41af-b541-72bf321ab12f" }
+def getOauthClientId()				{ "TODO: Insert your OAuth Client ID" }
+def getOauthClientSecret()			{ "TODO: Insert your OAuth Client Secret" }
 
 // Service Manager properties
 def getSmartThingsApiEndpoint()		{ return "https://graph.api.smartthings.com" }
