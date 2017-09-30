@@ -1,5 +1,5 @@
 /**
- *  Copyright (c) 2016 Tibor Jakab-Barthi
+ *  Copyright (c) 2016-2017 Tibor Jakab-Barthi
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -28,6 +28,10 @@ preferences {
 			input(name: "username", type: "text", title: "Username", required: true, displayDuringSetup: true)
 			input(name: "password", type: "password", title: "Password", required: true, displayDuringSetup: true)
 		}
+
+		section("General") {
+			input "debugMode", "bool", title: "Enable debug logging", defaultValue: false, displayDuringSetup: true
+		}
 	}
 
 	page(name: "settingsPage")
@@ -42,33 +46,25 @@ def settingsPage() {
 		section ("TaHoma® devices to control") {
 			input(name: "selectedRollerShutterNames", type: "enum", title: "Roller Shutters", description: "Tap to choose", required: true, multiple: true, metadata: [values: rollerShutterNames], displayDuringSetup: true)
 		}
-
-		section("General") {
-			input "debugMode", "bool", title: "Enable debug logging", defaultValue: false, displayDuringSetup: true
-		}
 	}
 }
 
 // Cloud-Connected Device properties
-def getAuthorizationHeaderValue() {
-	def authorizationToken = "${settings.username}:${settings.password}".bytes.encodeBase64()
-
-	def authorizationHeaderValue = "Basic $authorizationToken"
-
-	return authorizationHeaderValue
+def getCloudApiEndpoint() {
+	"https://www.tahomalink.com/enduser-mobile-web/enduserAPI/" 
 }
 
-def getCloudApiEndpoint() {
-	"https://tahomabysomfyapi.azurewebsites.net/api/v1/" 
+def getSmartAppVersion() {
+	"1.2.20170930" 
 }
 
 // Device specific methods
 def getDeviceId(device) { 
-	return device.Id;
+	return device.deviceURL;
 }
 
 def getDeviceName(device) { 
-	return device.Name;
+	return device.label;
 }
 
 def installed() {
@@ -77,6 +73,7 @@ def installed() {
 	atomicState.installedAt = now()
 
 	updateRollerShutters()
+
 	initialize()
 }
 
@@ -94,17 +91,25 @@ def updated() {
 	unsubscribe()
 
 	updateRollerShutters()
+
 	initialize()
 }
 
 def debug(message) {
 	if (settings.debugMode) {
-		log.debug "SA: $message"
+		log.debug("SA $smartAppVersion: $message")
 	}
 }
 
 def initialize() {
 	debug("initialize()")
+
+	atomicState.authorizationFailed = false
+	atomicState.authorizationHeaderValue = ""
+	atomicState.authorizationRetries = 1
+	atomicState.authorizationRetriesRemaining = atomicState.authorizationRetries
+	atomicState.authorizationTimeoutInMilliseconds = 15 * 60 * 1000 // minutes * seconds * milliseconds
+	atomicState.authorizedAt = 0
 
 	def selectedRollerShutters = selectedRollerShutterNames.each { dni ->
 		def rollerShutter = atomicState.rollerShutters[dni]
@@ -113,7 +118,7 @@ def initialize() {
 			debug("initialize: rollerShutters: ${atomicState.rollerShutters}")
 
 			def errorMessage = "Roller Shutter '$dni' not found."
-			log.error errorMessage
+			log.error(errorMessage)
 
 			throw new GroovyRuntimeException(errorMessage)
 		}
@@ -154,15 +159,90 @@ def initialize() {
 		delete = getAllChildDevices()
 	}
 
-	log.warn "Delete: ${delete}, deleting ${delete.size()} Roller Shutters."
+	log.warn("Delete: ${delete}, deleting ${delete.size()} Roller Shutters.")
 
 	delete.each { deleteChildDevice(it.deviceNetworkId) }
+}
 
-	//pollHandler()
+def getAuthorizationHeaderValue() {
+	debug("getAuthorizationHeaderValue()")
 
-	// Automatically update devices status every 5 mins.
-	//runEvery5Minutes("poll")
-	//runIn(30, poll)
+	if (atomicState.authorizationHeaderValue == "" || atomicState.authorizedAt < now() - atomicState.authorizationTimeoutInMilliseconds) {
+		debug("getAuthorizationHeaderValue: Authorizing with server.")
+
+		atomicState.authorizationHeaderValue = getAuthorizationHeaderValueCore()
+	}
+
+	return atomicState.authorizationHeaderValue
+}
+
+def getAuthorizationHeaderValueCore() {
+	debug("getAuthorizationHeaderValueCore()")
+
+	atomicState.authorizationFailed = false
+	atomicState.authorizationHeaderValue = ""
+
+	def requestParams = [
+		method: 'POST',
+		uri: cloudApiEndpoint,
+		path: 'login',
+		headers: [
+			'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+		]
+	]
+
+	debug("$requestParams")
+
+	requestParams.body = [
+		'userId':	settings.username,
+		'userPassword':	settings.password
+	]
+
+	try {
+		httpPost(requestParams) { resp ->
+			if (resp.status == 200) {
+				debug("getAuthorizationHeaderValueCore(): resp.data ${resp.data}")
+
+				if (resp.data && resp.data.success == true) {
+					def cookieHeader = resp.headers.'Set-Cookie'
+
+					if (cookieHeader.contains('JSESSIONID')) {
+						def cookieParts = cookieHeader.split(';')
+						if (cookieParts.length > 0) {
+							atomicState.authorizationHeaderValue = cookieParts[0]
+
+							debug("getAuthorizationHeaderValueCore(): authorizationHeaderValue ${atomicState.authorizationHeaderValue}")
+
+							atomicState.authorizationFailed = false
+							atomicState.authorizationRetriesRemaining = atomicState.authorizationRetries
+							atomicState.authorizedAt = now()
+						}
+					}
+				}
+			}
+			else {
+				log.error("getAuthorizationHeaderValueCore(): Failed: ${resp.status}")
+			}
+		}
+	} catch (groovyx.net.http.HttpResponseException e) {
+		log.error("getAuthorizationHeaderValueCore(): Error: ${e}")
+
+		atomicState.authorizationHeaderValue = ""
+
+		if (e.statusCode == 401) {
+			if (atomicState.authorizationRetriesRemaining > 0) {
+				debug("Retry authorization $atomicState.authorizationRetriesRemaining time(s).")
+
+				atomicState.authorizationRetriesRemaining = atomicState.authorizationRetriesRemaining - 1
+
+				atomicState.authorizationHeaderValue = getAuthorizationHeaderValueCore()
+			} else {
+				atomicState.authorizationFailed = true
+			}
+		}
+	}
+
+	return atomicState.authorizationHeaderValue
 }
 
 def removeChildDevices(childDevices) {
@@ -199,9 +279,9 @@ def updateRollerShutters() {
 	def requestParams = [
 		method: 'GET',
 		uri: cloudApiEndpoint,
-		path: 'RollerShutters/List',
+		path: 'setup',
 		headers: [
-			'Authorization': getAuthorizationHeaderValue()
+			'Cookie': getAuthorizationHeaderValue()
 		]
 	]
 
@@ -209,27 +289,32 @@ def updateRollerShutters() {
 
 	try {
 		httpGet(requestParams) { resp ->
-			if (resp.status == 200 && resp.data) {
-				debug "updateRollerShutters(): resp.data ${resp.data}"
+			debug("updateRollerShutters(): resp.data ${resp.data}")
 
+			if (resp.status == 200 && resp.data) {
 				def rollerShutters = [:]
 
-				resp.data.each { rollerShutter ->
-					def dni = [app.id, getDeviceId(rollerShutter)].join('.')
+				if (resp.data.devices) {
+					resp.data.devices.each { device ->
+						if (device.controllableName == 'rts:RollerShutterRTSComponent') {
+							def dni = [app.id, getDeviceId(device)].join('.')
 
-					rollerShutters[dni] = rollerShutter
+							rollerShutters[dni] = device
+						}
+					}
 				}
 
-				atomicState.authorizationFailed = false
+				debug("updateRollerShutters(): rollerShutters ${rollerShutters}")
+
 				atomicState.rollerShutters = rollerShutters
 				atomicState.rollerShuttersUpdatedAt = now()
 			}
 			else {
-				log.error "updateRollerShutters(): Failed: ${resp.status}"
+				log.error("updateRollerShutters(): Failed: ${resp.status}")
 			}
 		}
 	} catch (groovyx.net.http.HttpResponseException e) {
-		log.error "updateRollerShutters(): Error: ${e}"
+		log.error("updateRollerShutters(): Error: ${e}")
 
 		if (e.statusCode == 401) {
 			atomicState.authorizationFailed = true
@@ -237,58 +322,60 @@ def updateRollerShutters() {
 	}
 }
 
-def executeRollerShutterCommand(commandId, rollerShutterId) {
-	debug("executeRollerShutterCommand($commandId, $rollerShutterId)")
+def executeRollerShutterCommand(commandId, rollerShutterId, label) {
+	debug("executeRollerShutterCommand($commandId, $rollerShutterId, $label)")
+
+	label = "$label ($rollerShutterId; SmartThings $smartAppVersion)";
+
+	def body = "{\"label\":\"$label\",\"actions\":[{\"deviceURL\":\"$rollerShutterId\",\"commands\":[{\"name\":\"$commandId\",\"parameters\":[]}]}]}"
 
 	def requestParams = [
 		method: 'POST',
 		uri: cloudApiEndpoint,
-		path: "RollerShutters/$commandId",
+		path: 'exec/apply',
 		headers: [
-			'Authorization': getAuthorizationHeaderValue()
+			'Cookie': getAuthorizationHeaderValue()
 		],
-		body: [
-			'RollerShutterId': rollerShutterId,
-		]
+		body: body
 	]
 
-	debug("$requestParams")
+	debug("requestParams: $requestParams")
 
 	def executionId
 
 	try {
 		httpPostJson(requestParams) { resp ->
 			if (resp.status == 200 && resp.data) {
-				debug "executeRollerShutterCommand(): resp.data ${resp.data}"
+				debug("executeRollerShutterCommand(): resp.data ${resp.data}")
 
-				executionId = resp.data.ExecutionId
-
-				atomicState.authorizationFailed = false
+				executionId = resp.data.execId
 			}
 			else {
-				log.error "executeRollerShutterCommand(): Failed: ${resp.status}"
+				log.error("executeRollerShutterCommand(): Failed: ${resp.status}")
 			}
 		}
 	} catch (groovyx.net.http.HttpResponseException e) {
-		log.error "executeRollerShutterCommand(): Error: ${e}"
+		log.error("executeRollerShutterCommand(): Error: ${e}")
 
 		if (e.statusCode == 401) {
 			atomicState.authorizationFailed = true
 		}
 	}
 
+	debug("executeRollerShutterCommand: $commandId done: executionId: $executionId")
+
 	return executionId
 }
 
-def stopExecution(executionId) {
-	debug("stopExecution($executionId)")
+def stopExecution(executionId, label) {
+	debug("stopExecution($executionId, $label)")
 
 	def requestParams = [
 		method: 'DELETE',
 		uri: cloudApiEndpoint,
-		path: "RollerShutters/Stop/$executionId",
+		path: "exec/current/setup/$executionId",
 		headers: [
-			'Authorization': getAuthorizationHeaderValue()
+			'Cookie': getAuthorizationHeaderValue()
 		],
 	]
 
@@ -299,11 +386,9 @@ def stopExecution(executionId) {
 	try {
 		httpDelete(requestParams) { resp ->
 			result = resp.status
-
-			atomicState.authorizationFailed = false
 		}
 	} catch (groovyx.net.http.HttpResponseException e) {
-		log.error "stopExecution(): Error: ${e}"
+		log.error("stopExecution(): Error: ${e}")
 
 		result = e
 
@@ -315,40 +400,40 @@ def stopExecution(executionId) {
 	return result
 }
 
-def close(rollerShutterId) {
-	debug("close($rollerShutterId)")
+def close(rollerShutterId, label) {
+	debug("close($rollerShutterId, $label)")
 
-	def executionId = executeRollerShutterCommand("Close", rollerShutterId)
-
-	return executionId
-}
-
-def identify(rollerShutterId) {
-	debug("identify($rollerShutterId)")
-
-	def executionId = executeRollerShutterCommand("Identify", rollerShutterId)
+	def executionId = executeRollerShutterCommand("close", rollerShutterId, "Close $label")
 
 	return executionId
 }
 
-def open(rollerShutterId) {
-	debug("open($rollerShutterId)")
+def identify(rollerShutterId, label) {
+	debug("identify($rollerShutterId, $label)")
 
-	def executionId = executeRollerShutterCommand("Open", rollerShutterId)
-
-	return executionId
-}
-
-def presetPosition(rollerShutterId) {
-	debug("presetPosition($rollerShutterId)")
-
-	def executionId = executeRollerShutterCommand("My", rollerShutterId)
+	def executionId = executeRollerShutterCommand("identify", rollerShutterId, "Identify $label")
 
 	return executionId
 }
 
-def stop(executionId) {
-	debug("stop($executionId)")
+def open(rollerShutterId, label) {
+	debug("open($rollerShutterId, $label)")
 
-	stopExecution(executionId)
+	def executionId = executeRollerShutterCommand("open", rollerShutterId, "Open $label")
+
+	return executionId
+}
+
+def presetPosition(rollerShutterId, label) {
+	debug("presetPosition($rollerShutterId, $label)")
+
+	def executionId = executeRollerShutterCommand("my", rollerShutterId, "My position $label")
+
+	return executionId
+}
+
+def stop(executionId, label) {
+	debug("stop($executionId, $label)")
+
+	stopExecution(executionId, "Stop $label")
 }
