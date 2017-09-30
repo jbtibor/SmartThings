@@ -1,5 +1,5 @@
 /**
- *  Copyright (c) 2016 Tibor Jakab-Barthi
+ *  Copyright (c) 2016-2017 Tibor Jakab-Barthi
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -14,9 +14,8 @@
  */
 metadata {
 	definition (name: "TaHoma Roller Shutter", namespace: "jbt", author: "Tibor Jakab-Barthi") {
+		capability "Switch"
 		capability "Window Shade"
-
-		attribute "lastUpdateDate", "string"
 
 		command "identify"
 		command "stop"
@@ -55,72 +54,104 @@ metadata {
 	}
 }
 
-def close() {
-	log.debug "DT: close()"
+def getDeviceTypeVersion() {
+	"1.2.20170930" 
+}
 
-	parent.stop(state.executionId)
-	state.executionId = parent.close(device.name)
+def debug(message) {
+	if (parent.settings.debugMode) {
+		log.debug("DT $deviceTypeVersion: $message")
+	}
+}
+
+def close() {
+	debug("close()")
+
+	parent.stop(state.executionId, device.label)
+	state.executionId = parent.close(device.name, device.label)
 
 	sendEvent(name: "windowShade", value: "closed")
+	sendEvent(name: "switch", value: "off")
 
-	log.debug "close executionId ${state.executionId}"
+	debug("END: close executionId: ${state.executionId}")
 }
 
 def identify() {
-	log.debug "DT: identify()"
+	debug("identify()")
 
-	parent.stop(state.executionId)
-	state.executionId = parent.identify(device.name)
+	parent.stop(state.executionId, device.label)
+	state.executionId = parent.identify(device.name, device.label)
 
 	sendEvent(name: "windowShade", value: "closed")
+	sendEvent(name: "switch", value: "off")
 
-	log.debug "identify executionId ${state.executionId}"
+	debug("END: identify executionId: ${state.executionId}")
 }
 
 def open() {
-	log.debug "DT: open()"
+	debug("open()")
 
-	parent.stop(state.executionId)
-	state.executionId = parent.open(device.name)
+	parent.stop(state.executionId, device.label)
+	state.executionId = parent.open(device.name, device.label)
 
 	sendEvent(name: "windowShade", value: "open")
+	sendEvent(name: "switch", value: "on")
 
-	log.debug "open executionId ${state.executionId}"
+	debug("END: open executionId: ${state.executionId}")
 }
 
 def presetPosition() {
-	log.debug "DT: presetPosition()"
+	debug("presetPosition()")
 
-	parent.stop(state.executionId)
-	state.executionId = parent.presetPosition(device.name)
+	parent.stop(state.executionId, device.label)
+	state.executionId = parent.presetPosition(device.name, device.label)
 
 	sendEvent(name: "windowShade", value: "partially open")
+	sendEvent(name: "switch", value: "on")
 
-	log.debug "presetPosition executionId ${state.executionId}"
+	debug("END: presetPosition executionId: ${state.executionId}")
 }
 
 def stop() {
-	log.debug "DT: stop()"
+	debug("stop()")
 
-	def result = parent.stop(state.executionId)
+	def result = parent.stop(state.executionId, device.label)
 
 	sendEvent(name: "windowShade", value: "partially open")
+	sendEvent(name: "switch", value: "on")
 
-	log.debug "stop executionId ${state.executionId} $result"
+	debug("END: stop executionId: ${state.executionId} $result")
 }
 
 void poll() {
-	log.debug "poll"
+	debug("poll()")
 
 	parent.poll()
+
+	debug("END: poll")
 }
 
 def generateEvent(Map eventData){
-	log.debug "generateEvent(${eventData})"
+	debug("generateEvent(${eventData})")
 
     eventData.each { name, value ->
-		log.debug "sendEvent(name: $name, value: $value)"
+		debug("sendEvent(name: $name, value: $value)")
 
         sendEvent(name: name, value: value)
     }
+
+	debug("END: generateEvent")
+}
+
+// Switch
+def on() {
+	debug("on()")
+
+	open()
+}
+
+def off() {
+	debug("off()")
+
+	close()
 }
