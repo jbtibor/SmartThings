@@ -55,7 +55,7 @@ metadata {
 }
 
 def getDeviceTypeVersion() {
-	"1.2.20170930" 
+	"1.2.20171001" 
 }
 
 def debug(message) {
@@ -67,49 +67,65 @@ def debug(message) {
 def close() {
 	debug("close()")
 
-	parent.stop(state.executionId, device.label)
-	state.executionId = parent.close(device.name, device.label)
+	if (parent.settings.disableClose) {
+		debug("END: close: Close is not enabled.")
+	} else {
+		parent.stop(state.executionId, device.label)
+		state.executionId = parent.close(device.name, device.label)
 
-	sendEvent(name: "windowShade", value: "closed")
-	sendEvent(name: "switch", value: "off")
+		sendEvent(name: "windowShade", value: "closed")
+		sendEvent(name: "switch", value: "off")
 
-	debug("END: close executionId: ${state.executionId}")
+		debug("END: close executionId: ${state.executionId}")
+	}
 }
 
 def identify() {
 	debug("identify()")
 
-	parent.stop(state.executionId, device.label)
-	state.executionId = parent.identify(device.name, device.label)
+	if (parent.settings.disableClose) {
+		debug("END: identify: Close is not enabled.")
+	} else {
+		parent.stop(state.executionId, device.label)
+		state.executionId = parent.identify(device.name, device.label)
 
-	sendEvent(name: "windowShade", value: "closed")
-	sendEvent(name: "switch", value: "off")
+		sendEvent(name: "windowShade", value: "closed")
+		sendEvent(name: "switch", value: "off")
 
-	debug("END: identify executionId: ${state.executionId}")
+		debug("END: identify executionId: ${state.executionId}")
+	}
 }
 
 def open() {
 	debug("open()")
 
-	parent.stop(state.executionId, device.label)
-	state.executionId = parent.open(device.name, device.label)
+	if (parent.settings.disableOpen) {
+		debug("END: open: Open is not enabled.")
+	} else {
+		parent.stop(state.executionId, device.label)
+		state.executionId = parent.open(device.name, device.label)
 
-	sendEvent(name: "windowShade", value: "open")
-	sendEvent(name: "switch", value: "on")
+		sendEvent(name: "windowShade", value: "open")
+		sendEvent(name: "switch", value: "on")
 
-	debug("END: open executionId: ${state.executionId}")
+		debug("END: open executionId: ${state.executionId}")
+	}
 }
 
 def presetPosition() {
 	debug("presetPosition()")
 
-	parent.stop(state.executionId, device.label)
-	state.executionId = parent.presetPosition(device.name, device.label)
+	if (parent.settings.disableClose) {
+		debug("END: presetPosition: Close is not enabled.")
+	} else {
+		parent.stop(state.executionId, device.label)
+		state.executionId = parent.presetPosition(device.name, device.label)
 
-	sendEvent(name: "windowShade", value: "partially open")
-	sendEvent(name: "switch", value: "on")
+		sendEvent(name: "windowShade", value: "partially open")
+		sendEvent(name: "switch", value: "on")
 
-	debug("END: presetPosition executionId: ${state.executionId}")
+		debug("END: presetPosition executionId: ${state.executionId}")
+	}
 }
 
 def stop() {
