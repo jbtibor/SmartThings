@@ -30,7 +30,12 @@ preferences {
 		}
 
 		section("General") {
-			input "debugMode", "bool", title: "Enable debug logging", defaultValue: false, displayDuringSetup: true
+			input(name: "debugMode", type: "bool", title: "Enable debug logging", defaultValue: false, displayDuringSetup: true)
+		}
+
+		section("Roller shutters") {
+			input(name: "disableClose", type: "bool", title: "Disable close", defaultValue: false, displayDuringSetup: true)
+			input(name: "disableOpen", type: "bool", title: "Disable open", defaultValue: false, displayDuringSetup: true)
 		}
 	}
 
@@ -55,7 +60,7 @@ def getCloudApiEndpoint() {
 }
 
 def getSmartAppVersion() {
-	"1.2.20170930" 
+	"1.2.20171001" 
 }
 
 // Device specific methods
