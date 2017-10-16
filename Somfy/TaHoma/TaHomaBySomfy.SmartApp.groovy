@@ -45,6 +45,8 @@ preferences {
 def settingsPage() {
 	debug("settingsPage()")
 
+	setDefaultValues()
+
 	def rollerShutterNames = getRollerShutterNames()
 
 	dynamicPage(name: "settingsPage", title: "", install: true, uninstall: true) {
@@ -60,7 +62,7 @@ def getCloudApiEndpoint() {
 }
 
 def getSmartAppVersion() {
-	"1.2.20171001" 
+	"1.2.20171016" 
 }
 
 // Device specific methods
@@ -106,15 +108,25 @@ def debug(message) {
 	}
 }
 
-def initialize() {
-	debug("initialize()")
+def setDefaultValues() {
+	debug("setDefaultValues()")
+
+	def minute = 60 * 1000 // seconds * milliseconds
 
 	atomicState.authorizationFailed = false
 	atomicState.authorizationHeaderValue = ""
 	atomicState.authorizationRetries = 1
 	atomicState.authorizationRetriesRemaining = atomicState.authorizationRetries
-	atomicState.authorizationTimeoutInMilliseconds = 15 * 60 * 1000 // minutes * seconds * milliseconds
+	atomicState.authorizationTimeoutInMilliseconds = 1 * minute
 	atomicState.authorizedAt = 0
+
+	debug("setDefaultValues: atomicState: $atomicState")
+}
+
+def initialize() {
+	debug("initialize()")
+
+	setDefaultValues();
 
 	def selectedRollerShutters = selectedRollerShutterNames.each { dni ->
 		def rollerShutter = atomicState.rollerShutters[dni]
@@ -176,6 +188,8 @@ def getAuthorizationHeaderValue() {
 		debug("getAuthorizationHeaderValue: Authorizing with server.")
 
 		atomicState.authorizationHeaderValue = getAuthorizationHeaderValueCore()
+	} else {
+		debug("getAuthorizationHeaderValue: Using cached token.")
 	}
 
 	return atomicState.authorizationHeaderValue
