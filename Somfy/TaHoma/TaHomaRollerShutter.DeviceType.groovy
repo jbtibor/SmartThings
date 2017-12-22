@@ -14,6 +14,7 @@
  */
 metadata {
 	definition (name: "TaHoma Roller Shutter", namespace: "jbt", author: "Tibor Jakab-Barthi") {
+		capability "Configuration"
 		capability "Switch"
 		capability "Window Shade"
 
@@ -54,6 +55,13 @@ metadata {
 	}
 }
 
+preferences {
+	section {
+		input ("disableOpen", "bool", title: "Disable open", defaultValue: false, displayDuringSetup: false)
+		input ("disableClose", "bool", title: "Disable close", defaultValue: false, displayDuringSetup: false)
+	}
+}
+
 def getDeviceTypeVersion() {
 	"1.2.20171222" 
 }
@@ -67,7 +75,7 @@ def debug(message) {
 def close() {
 	debug("close()")
 
-	if (parent.settings.disableClose) {
+	if (settings.disableClose) {
 		debug("END: close: Close is not enabled.")
 	} else {
 		parent.stop(state.executionId, device.label)
@@ -83,7 +91,7 @@ def close() {
 def identify() {
 	debug("identify()")
 
-	if (parent.settings.disableClose) {
+	if (settings.disableClose) {
 		debug("END: identify: Close is not enabled.")
 	} else {
 		parent.stop(state.executionId, device.label)
@@ -99,7 +107,7 @@ def identify() {
 def open() {
 	debug("open()")
 
-	if (parent.settings.disableOpen) {
+	if (settings.disableOpen) {
 		debug("END: open: Open is not enabled.")
 	} else {
 		parent.stop(state.executionId, device.label)
@@ -115,7 +123,7 @@ def open() {
 def presetPosition() {
 	debug("presetPosition()")
 
-	if (parent.settings.disableClose) {
+	if (settings.disableClose) {
 		debug("END: presetPosition: Close is not enabled.")
 	} else {
 		parent.stop(state.executionId, device.label)
@@ -137,18 +145,6 @@ def stop() {
 	sendEvent(name: "switch", value: "on")
 
 	debug("END: stop executionId: ${state.executionId} $result")
-}
-
-def generateEvent(Map eventData){
-	debug("generateEvent(${eventData})")
-
-    eventData.each { name, value ->
-		debug("sendEvent(name: $name, value: $value)")
-
-        sendEvent(name: name, value: value)
-    }
-
-	debug("END: generateEvent")
 }
 
 // Switch
