@@ -32,11 +32,6 @@ preferences {
 		section("General") {
 			input(name: "debugMode", type: "bool", title: "Enable debug logging", defaultValue: false, displayDuringSetup: true)
 		}
-
-		section("Roller shutters") {
-			input(name: "disableClose", type: "bool", title: "Disable close", defaultValue: false, displayDuringSetup: true)
-			input(name: "disableOpen", type: "bool", title: "Disable open", defaultValue: false, displayDuringSetup: true)
-		}
 	}
 
 	page(name: "settingsPage")
