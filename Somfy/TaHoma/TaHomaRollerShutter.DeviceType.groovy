@@ -55,7 +55,7 @@ metadata {
 }
 
 def getDeviceTypeVersion() {
-	"1.2.20171001" 
+	"1.2.20171222" 
 }
 
 def debug(message) {
@@ -139,14 +139,6 @@ def stop() {
 	debug("END: stop executionId: ${state.executionId} $result")
 }
 
-void poll() {
-	debug("poll()")
-
-	parent.poll()
-
-	debug("END: poll")
-}
-
 def generateEvent(Map eventData){
 	debug("generateEvent(${eventData})")
 
@@ -163,11 +155,11 @@ def generateEvent(Map eventData){
 def on() {
 	debug("on()")
 
-	open()
+	close()
 }
 
 def off() {
 	debug("off()")
 
-	close()
+	open()
 }
