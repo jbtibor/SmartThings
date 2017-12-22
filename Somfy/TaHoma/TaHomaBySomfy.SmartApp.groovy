@@ -47,11 +47,16 @@ def settingsPage() {
 
 	setDefaultValues()
 
+	updateDevices()
+
+	def interiorRollerBlindNames = getInteriorRollerBlindNames()
 	def rollerShutterNames = getRollerShutterNames()
 
 	dynamicPage(name: "settingsPage", title: "", install: true, uninstall: true) {
 		section ("TaHoma® devices to control") {
+			input(name: "selectedInteriorRollerBlindNames", type: "enum", title: "Interior Roller Blinds", description: "Tap to choose", required: true, multiple: true, metadata: [values: interiorRollerBlindNames], displayDuringSetup: true)
 			input(name: "selectedRollerShutterNames", type: "enum", title: "Roller Shutters", description: "Tap to choose", required: true, multiple: true, metadata: [values: rollerShutterNames], displayDuringSetup: true)
+			input(name: "selectedSwitchNames", type: "enum", title: "Switches", description: "Tap to choose", required: true, multiple: true, metadata: [values: switchNames], displayDuringSetup: true)
 		}
 	}
 }
@@ -62,7 +67,7 @@ def getCloudApiEndpoint() {
 }
 
 def getSmartAppVersion() {
-	"1.2.20171016" 
+	"1.2.20171222" 
 }
 
 // Device specific methods
@@ -79,7 +84,7 @@ def installed() {
 
 	atomicState.installedAt = now()
 
-	updateRollerShutters()
+	updateDevices()
 
 	initialize()
 }
@@ -97,7 +102,7 @@ def updated() {
 
 	unsubscribe()
 
-	updateRollerShutters()
+	updateDevices()
 
 	initialize()
 }
@@ -127,6 +132,57 @@ def initialize() {
 	debug("initialize()")
 
 	setDefaultValues();
+
+	processSelectedInteriorRollerBlinds()
+	processSelectedRollerShutters()
+	processSelectedSwitches()
+	deleteUnselectedDevices()
+}
+
+def processSelectedInteriorRollerBlinds() {
+	debug("processSelectedInteriorRollerBlinds()")
+
+	def selectedInteriorRollerBlinds = selectedInteriorRollerBlindNames.each { dni ->
+		def interiorRollerBlind = atomicState.interiorRollerBlinds[dni]
+
+		if (!interiorRollerBlind) {
+			debug("initialize: interiorRollerBlinds: ${atomicState.interiorRollerBlinds}")
+
+			def errorMessage = "Interior Roller Blind '$dni' not found."
+			log.error(errorMessage)
+
+			throw new GroovyRuntimeException(errorMessage)
+		}
+
+		debug("interiorRollerBlind $interiorRollerBlind")
+
+		def deviceName = getDeviceName(interiorRollerBlind)
+		def deviceId = getDeviceId(interiorRollerBlind)
+
+		def virtualDevice = getChildDevice(dni)
+
+		if (virtualDevice) {
+			debug("Found ${virtualDevice.name} with network id '$dni' already exists.")
+		} else {
+			def deviceTypeName = "TaHoma Roller Shutter"
+
+			debug("Creating new '$deviceTypeName' device '$deviceName' with id '$dni'.")
+
+			virtualDevice = addChildDevice(app.namespace, deviceTypeName, dni, null, ["name": deviceId, "label": deviceName, "completedSetup": true])
+
+			debug("virtualDevice ${virtualDevice}")
+
+			debug("Created '$deviceName' with network id '$dni'.")
+		}
+
+		return virtualDevice
+	}
+
+	debug("User selected ${selectedInteriorRollerBlinds.size()} Interior Roller Blinds.")
+}
+
+def processSelectedRollerShutters() {
+	debug("processSelectedRollerShutters()")
 
 	def selectedRollerShutters = selectedRollerShutterNames.each { dni ->
 		def rollerShutter = atomicState.rollerShutters[dni]
@@ -165,18 +221,64 @@ def initialize() {
 	}
 
 	debug("User selected ${selectedRollerShutters.size()} Roller Shutters.")
+}
+
+def processSelectedSwitches() {
+	debug("processSelectedSwitches()")
+
+	def selectedSwitches = selectedSwitchNames.each { dni ->
+		def currentSwitch = atomicState.switches[dni]
+
+		if (!currentSwitch) {
+			debug("initialize: switches: ${atomicState.switches}")
+
+			def errorMessage = "Switch '$dni' not found."
+			log.error(errorMessage)
+
+			throw new GroovyRuntimeException(errorMessage)
+		}
+
+		debug("switch $currentSwitch")
+
+		def deviceName = getDeviceName(currentSwitch)
+		def deviceId = getDeviceId(currentSwitch)
+
+		def virtualDevice = getChildDevice(dni)
+
+		if (virtualDevice) {
+			debug("Found ${virtualDevice.name} with network id '$dni' already exists.")
+		} else {
+			def deviceTypeName = "TaHoma Switch"
+
+			debug("Creating new '$deviceTypeName' device '$deviceName' with id '$dni'.")
+
+			virtualDevice = addChildDevice(app.namespace, deviceTypeName, dni, null, ["name": deviceId, "label": deviceName, "completedSetup": true])
+
+			debug("virtualDevice ${virtualDevice}")
+
+			debug("Created '$deviceName' with network id '$dni'.")
+		}
+
+		return virtualDevice
+	}
+
+	debug("User selected ${selectedSwitches.size()} switches.")
+}
+
+def deleteUnselectedDevices() {
+	debug("deleteUnselectedDevices()")
 
 	def delete
 
-	if (selectedRollerShutterNames) {
-		debug("Delete Roller Shutters not selected by user.")
+	if (selectedInteriorRollerBlindNames || selectedRollerShutterNames || selectedSwitchNames) {
+		debug("Delete devices not selected by user.")
 
-		delete = getChildDevices().findAll { !selectedRollerShutterNames.contains(it.deviceNetworkId) }
+		delete = getChildDevices().findAll { !selectedInteriorRollerBlindNames.contains(it.deviceNetworkId) && !selectedRollerShutterNames.contains(it.deviceNetworkId) && !selectedSwitchNames.contains(it.deviceNetworkId) }
 	} else {
 		delete = getAllChildDevices()
 	}
 
-	log.warn("Delete: ${delete}, deleting ${delete.size()} Roller Shutters.")
+	log.warn("Delete: ${delete}, deleting ${delete.size()} devices.")
 
 	delete.each { deleteChildDevice(it.deviceNetworkId) }
 }
@@ -276,10 +378,22 @@ def removeChildDevices(childDevices) {
     }
 }
 
+def getInteriorRollerBlindNames() {
+	debug("getInteriorRollerBlindNames()")
+
+	def interiorRollerBlindNames = [:]
+
+	atomicState.interiorRollerBlinds.each { dni, interiorRollerBlind ->
+		interiorRollerBlindNames[dni] = getDeviceName(interiorRollerBlind)
+	}
+
+	debug("interiorRollerBlindNames $interiorRollerBlindNames")
+
+	return interiorRollerBlindNames
+}
+
 def getRollerShutterNames() {
 	debug("getRollerShutterNames()")
-
-	updateRollerShutters()
 
 	def rollerShutterNames = [:]
 
@@ -292,8 +406,22 @@ def getRollerShutterNames() {
 	return rollerShutterNames
 }
 
-def updateRollerShutters() {
-	debug("updateRollerShutters()")
+def getSwitchNames() {
+	debug("getSwitchNames()")
+
+	def switchNames = [:]
+
+	atomicState.switches.each { dni, currentSwitch ->
+		switchNames[dni] = getDeviceName(currentSwitch)
+	}
+
+	debug("switchNames $switchNames")
+
+	return switchNames
+}
+
+def updateDevices() {
+	debug("updateDevices()")
 
 	def requestParams = [
 		method: 'GET',
@@ -308,32 +436,46 @@ def updateRollerShutters() {
 
 	try {
 		httpGet(requestParams) { resp ->
-			debug("updateRollerShutters(): resp.data ${resp.data}")
+			debug("updateDevices(): resp.data ${resp.data}")
 
 			if (resp.status == 200 && resp.data) {
 				def rollerShutters = [:]
+				def interiorRollerBlinds = [:]
+				def switches = [:]
 
 				if (resp.data.devices) {
 					resp.data.devices.each { device ->
-						if (device.controllableName == 'rts:RollerShutterRTSComponent') {
+						if (device.controllableName == 'rts:BlindRTSComponent') {
+							def dni = [app.id, getDeviceId(device)].join('.')
+
+							interiorRollerBlinds[dni] = device
+						} else if (device.controllableName == 'rts:RollerShutterRTSComponent') {
 							def dni = [app.id, getDeviceId(device)].join('.')
 
 							rollerShutters[dni] = device
+						} else if (device.controllableName == 'rts:OnOffRTSComponent') {
+							def dni = [app.id, getDeviceId(device)].join('.')
+
+							switches[dni] = device
 						}
 					}
 				}
 
-				debug("updateRollerShutters(): rollerShutters ${rollerShutters}")
+				debug("updateDevices(): interiorRollerBlinds ${interiorRollerBlinds}")
+				debug("updateDevices(): rollerShutters ${rollerShutters}")
+				debug("updateDevices(): switches ${switches}")
 
+				atomicState.interiorRollerBlinds = interiorRollerBlinds
 				atomicState.rollerShutters = rollerShutters
-				atomicState.rollerShuttersUpdatedAt = now()
+				atomicState.switches = switches
+				atomicState.devicesUpdatedAt = now()
 			}
 			else {
-				log.error("updateRollerShutters(): Failed: ${resp.status}")
+				log.error("updateDevices(): Failed: ${resp.status}")
 			}
 		}
 	} catch (groovyx.net.http.HttpResponseException e) {
-		log.error("updateRollerShutters(): Error: ${e}")
+		log.error("updateDevices(): Error: ${e}")
 
 		if (e.statusCode == 401) {
 			atomicState.authorizationFailed = true
@@ -382,6 +524,51 @@ def executeRollerShutterCommand(commandId, rollerShutterId, label) {
 	}
 
 	debug("executeRollerShutterCommand: $commandId done: executionId: $executionId")
+
+	return executionId
+}
+
+def executeSwitchCommand(commandId, switchId, label) {
+	debug("executeSwitchCommand($commandId, $switchId, $label)")
+
+	label = "$label ($switchId; SmartThings $smartAppVersion)";
+
+	def body = "{\"label\":\"$label\",\"actions\":[{\"deviceURL\":\"$switchId\",\"commands\":[{\"name\":\"$commandId\",\"parameters\":[]}]}]}"
+
+	def requestParams = [
+		method: 'POST',
+		uri: cloudApiEndpoint,
+		path: 'exec/apply',
+		headers: [
+			'Cookie': getAuthorizationHeaderValue()
+		],
+		body: body
+	]
+
+	debug("requestParams: $requestParams")
+
+	def executionId
+
+	try {
+		httpPostJson(requestParams) { resp ->
+			if (resp.status == 200 && resp.data) {
+				debug("executeSwitchCommand(): resp.data ${resp.data}")
+
+				executionId = resp.data.execId
+			}
+			else {
+				log.error("executeSwitchCommand(): Failed: ${resp.status}")
+			}
+		}
+	} catch (groovyx.net.http.HttpResponseException e) {
+		log.error("executeSwitchCommand(): Error: ${e}")
+
+		if (e.statusCode == 401) {
+			atomicState.authorizationFailed = true
+		}
+	}
+
+	debug("executeSwitchCommand: $commandId done: executionId: $executionId")
 
 	return executionId
 }
@@ -455,4 +642,20 @@ def stop(executionId, label) {
 	debug("stop($executionId, $label)")
 
 	stopExecution(executionId, "Stop $label")
+}
+
+def switchOff(switchId, label) {
+	debug("switchOff($switchId, $label)")
+
+	def executionId = executeSwitchCommand("off", switchId, "$label off")
+
+	return executionId
+}
+
+def switchOn(switchId, label) {
+	debug("switchOn($switchId, $label)")
+
+	def executionId = executeSwitchCommand("on", switchId, "$label on")
+
+	return executionId
 }
