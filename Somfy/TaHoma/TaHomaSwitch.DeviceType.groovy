@@ -1,4 +1,4 @@
-﻿/**
+/**
  *  Copyright (c) 2017 Tibor Jakab-Barthi
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -14,6 +14,7 @@
  */
 metadata {
 	definition (name: "TaHoma Switch", namespace: "jbt", author: "Tibor Jakab-Barthi") {
+		capability "Configuration"
 		capability "Switch"
 	}
 
@@ -32,6 +33,12 @@ metadata {
 	}
 }
 
+preferences {
+	section {
+		icon(title: "Update Icon")
+	}
+}
+
 def getDeviceTypeVersion() {
 	"1.1.20171222" 
 }
@@ -40,18 +47,6 @@ def debug(message) {
 	if (parent.settings.debugMode) {
 		log.debug("DT $deviceTypeVersion: $message")
 	}
-}
-
-def generateEvent(Map eventData){
-	debug("generateEvent(${eventData})")
-
-    eventData.each { name, value ->
-		debug("sendEvent(name: $name, value: $value)")
-
-        sendEvent(name: name, value: value)
-    }
-
-	debug("END: generateEvent")
 }
 
 // Switch
