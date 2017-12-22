@@ -3,7 +3,7 @@ How to install:
 - Open My Device Handlers.
 - Click on Create New Device Handler button.
 - Select From Code.
-- Copy the raw version of TaHomaRollerShutter.DeviceType.groovy into text area in SmartThings IDE.
+- Copy the raw version of device type (e.g. TaHomaRollerShutter.DeviceType.groovy) into text area in SmartThings IDE.
 - Click Create, then publish.
 - Open My SmartApps.
 - Click on New SmartApp button.
