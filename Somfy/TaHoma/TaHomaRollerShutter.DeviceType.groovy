@@ -82,7 +82,7 @@ def close() {
 		state.executionId = parent.close(device.name, device.label)
 
 		sendEvent(name: "windowShade", value: "closed")
-		sendEvent(name: "switch", value: "off")
+		sendEvent(name: "switch", value: "on")
 
 		debug("END: close executionId: ${state.executionId}")
 	}
@@ -114,7 +114,7 @@ def open() {
 		state.executionId = parent.open(device.name, device.label)
 
 		sendEvent(name: "windowShade", value: "open")
-		sendEvent(name: "switch", value: "on")
+		sendEvent(name: "switch", value: "off")
 
 		debug("END: open executionId: ${state.executionId}")
 	}
