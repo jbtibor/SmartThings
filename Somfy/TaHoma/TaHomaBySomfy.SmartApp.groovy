@@ -1,5 +1,5 @@
 /**
- *  Copyright (c) 2016-2017 Tibor Jakab-Barthi
+ *  Copyright (c) 2016-2018 Tibor Jakab-Barthi
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -48,10 +48,10 @@ def settingsPage() {
 	def rollerShutterNames = getRollerShutterNames()
 
 	dynamicPage(name: "settingsPage", title: "", install: true, uninstall: true) {
-		section ("TaHoma® devices to control") {
-			input(name: "selectedInteriorRollerBlindNames", type: "enum", title: "Interior Roller Blinds", description: "Tap to choose", required: true, multiple: true, metadata: [values: interiorRollerBlindNames], displayDuringSetup: true)
-			input(name: "selectedRollerShutterNames", type: "enum", title: "Roller Shutters", description: "Tap to choose", required: true, multiple: true, metadata: [values: rollerShutterNames], displayDuringSetup: true)
-			input(name: "selectedSwitchNames", type: "enum", title: "Switches", description: "Tap to choose", required: true, multiple: true, metadata: [values: switchNames], displayDuringSetup: true)
+		section ("TaHoma® devices to control", hideWhenEmpty: true) {
+			input(name: "selectedInteriorRollerBlindNames", type: "enum", title: "Interior Roller Blinds", description: "Tap to choose", required: false, multiple: true, metadata: [values: interiorRollerBlindNames], displayDuringSetup: true)
+			input(name: "selectedRollerShutterNames", type: "enum", title: "Roller Shutters", description: "Tap to choose", required: false, multiple: true, metadata: [values: rollerShutterNames], displayDuringSetup: true)
+			input(name: "selectedSwitchNames", type: "enum", title: "Switches", description: "Tap to choose", required: false, multiple: true, metadata: [values: switchNames], displayDuringSetup: true)
 		}
 	}
 }
@@ -62,7 +62,7 @@ def getCloudApiEndpoint() {
 }
 
 def getSmartAppVersion() {
-	"1.2.20171222" 
+	"1.2.20180131" 
 }
 
 // Device specific methods
@@ -128,16 +128,25 @@ def initialize() {
 
 	setDefaultValues();
 
-	processSelectedInteriorRollerBlinds()
-	processSelectedRollerShutters()
-	processSelectedSwitches()
+	def selectedDeviceCount = processSelectedInteriorRollerBlinds()
+	selectedDeviceCount += processSelectedRollerShutters()
+	selectedDeviceCount += processSelectedSwitches()
+
+	if (selectedDeviceCount == 0){
+		log.error("No devices were selected.")
+	}
+
 	deleteUnselectedDevices()
 }
 
 def processSelectedInteriorRollerBlinds() {
 	debug("processSelectedInteriorRollerBlinds()")
 
-	def selectedInteriorRollerBlinds = selectedInteriorRollerBlindNames.each { dni ->
+	if (!settings.selectedInteriorRollerBlindNames){
+		settings.selectedInteriorRollerBlindNames = []
+	}
+
+	def selectedInteriorRollerBlinds = settings.selectedInteriorRollerBlindNames.each { dni ->
 		def interiorRollerBlind = atomicState.interiorRollerBlinds[dni]
 
 		if (!interiorRollerBlind) {
@@ -174,10 +183,16 @@ def processSelectedInteriorRollerBlinds() {
 	}
 
 	debug("User selected ${selectedInteriorRollerBlinds.size()} Interior Roller Blinds.")
+
+	return selectedInteriorRollerBlinds.size()
 }
 
 def processSelectedRollerShutters() {
 	debug("processSelectedRollerShutters()")
+
+	if (!settings.selectedRollerShutterNames){
+		settings.selectedRollerShutterNames = []
+	}
 
 	def selectedRollerShutters = selectedRollerShutterNames.each { dni ->
 		def rollerShutter = atomicState.rollerShutters[dni]
@@ -216,10 +231,16 @@ def processSelectedRollerShutters() {
 	}
 
 	debug("User selected ${selectedRollerShutters.size()} Roller Shutters.")
+
+	return selectedRollerShutters.size()
 }
 
 def processSelectedSwitches() {
 	debug("processSelectedSwitches()")
+
+	if (!settings.selectedSwitchNames){
+		settings.selectedSwitchNames = []
+	}
 
 	def selectedSwitches = selectedSwitchNames.each { dni ->
 		def currentSwitch = atomicState.switches[dni]
@@ -258,6 +279,8 @@ def processSelectedSwitches() {
 	}
 
 	debug("User selected ${selectedSwitches.size()} switches.")
+
+	return selectedSwitches.size()
 }
 
 def deleteUnselectedDevices() {
@@ -265,10 +288,16 @@ def deleteUnselectedDevices() {
 
 	def delete
 
-	if (selectedInteriorRollerBlindNames || selectedRollerShutterNames || selectedSwitchNames) {
+	if ((settings.selectedInteriorRollerBlindNames && settings.selectedInteriorRollerBlindNames.size() > 0) || 
+			(settings.selectedRollerShutterNames && settings.selectedRollerShutterNames.size() > 0) || 
+			(settings.selectedSwitchNames && settings.selectedSwitchNames.size() > 0)) {
 		debug("Delete devices not selected by user.")
 
-		delete = getChildDevices().findAll { !selectedInteriorRollerBlindNames.contains(it.deviceNetworkId) && !selectedRollerShutterNames.contains(it.deviceNetworkId) && !selectedSwitchNames.contains(it.deviceNetworkId) }
+		delete = getChildDevices().findAll { 
+			!settings.selectedInteriorRollerBlindNames.contains(it.deviceNetworkId) && 
+			!settings.selectedRollerShutterNames.contains(it.deviceNetworkId) && 
+			!settings.selectedSwitchNames.contains(it.deviceNetworkId) 
+		}
 	} else {
 		delete = getAllChildDevices()
 	}
