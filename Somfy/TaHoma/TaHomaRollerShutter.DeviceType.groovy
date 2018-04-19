@@ -1,5 +1,5 @@
 /**
- *  Copyright (c) 2016-2017 Tibor Jakab-Barthi
+ *  Copyright (c) 2016-2018 Tibor Jakab-Barthi
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -63,13 +63,25 @@ preferences {
 }
 
 def getDeviceTypeVersion() {
-	"1.2.20171222" 
+	"1.2.20180418" 
 }
 
 def debug(message) {
 	if (parent.settings.debugMode) {
 		log.debug("DT $deviceTypeVersion: $message")
 	}
+}
+
+def setLevel(percent) {
+	debug("setLevel($percent)")
+    
+    if (percent == "0") {
+    	close()
+    } else if (percent == "100") {
+    	open()
+    } else {
+    	presetPosition()
+    }
 }
 
 def close() {
