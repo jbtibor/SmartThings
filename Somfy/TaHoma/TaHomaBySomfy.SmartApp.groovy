@@ -62,7 +62,7 @@ def getCloudApiEndpoint() {
 }
 
 def getSmartAppVersion() {
-	"1.2.20180131" 
+	"1.2.20180419" 
 }
 
 // Device specific methods
@@ -155,7 +155,7 @@ def processSelectedInteriorRollerBlinds() {
 			def errorMessage = "Interior Roller Blind '$dni' not found."
 			log.error(errorMessage)
 
-			throw new GroovyRuntimeException(errorMessage)
+			throw new org.json.JSONException(errorMessage)
 		}
 
 		debug("interiorRollerBlind $interiorRollerBlind")
@@ -203,7 +203,7 @@ def processSelectedRollerShutters() {
 			def errorMessage = "Roller Shutter '$dni' not found."
 			log.error(errorMessage)
 
-			throw new GroovyRuntimeException(errorMessage)
+			throw new org.json.JSONException(errorMessage)
 		}
 
 		debug("rollerShutter $rollerShutter")
@@ -251,7 +251,7 @@ def processSelectedSwitches() {
 			def errorMessage = "Switch '$dni' not found."
 			log.error(errorMessage)
 
-			throw new GroovyRuntimeException(errorMessage)
+			throw new org.json.JSONException(errorMessage)
 		}
 
 		debug("switch $currentSwitch")
