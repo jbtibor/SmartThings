@@ -46,11 +46,15 @@ def settingsPage() {
 
 	def interiorRollerBlindNames = getInteriorRollerBlindNames()
 	def rollerShutterNames = getRollerShutterNames()
+	def rollerShutterWithLowSpeedManagementIOComponentNames = getRollerShutterWithLowSpeedManagementIOComponentNames()
+
+	debug("rollerShutterWithLowSpeedManagementIOComponentNames $rollerShutterWithLowSpeedManagementIOComponentNames")
 
 	dynamicPage(name: "settingsPage", title: "", install: true, uninstall: true) {
 		section ("TaHoma® devices to control", hideWhenEmpty: true) {
 			input(name: "selectedInteriorRollerBlindNames", type: "enum", title: "Interior Roller Blinds", description: "Tap to choose", required: false, multiple: true, metadata: [values: interiorRollerBlindNames], displayDuringSetup: true)
 			input(name: "selectedRollerShutterNames", type: "enum", title: "Roller Shutters", description: "Tap to choose", required: false, multiple: true, metadata: [values: rollerShutterNames], displayDuringSetup: true)
+			input(name: "selectedRollerShutterWithLowSpeedManagementIOComponentNames", type: "enum", title: "Roller Shutters With Low Speed Management IO Component", description: "Tap to choose", required: false, multiple: true, metadata: [values: rollerShutterWithLowSpeedManagementIOComponentNames], displayDuringSetup: true)
 			input(name: "selectedSwitchNames", type: "enum", title: "Switches", description: "Tap to choose", required: false, multiple: true, metadata: [values: switchNames], displayDuringSetup: true)
 		}
 	}
@@ -62,7 +66,7 @@ def getCloudApiEndpoint() {
 }
 
 def getSmartAppVersion() {
-	"1.2.20180419" 
+	"1.3.20180521" 
 }
 
 // Device specific methods
@@ -130,6 +134,7 @@ def initialize() {
 
 	def selectedDeviceCount = processSelectedInteriorRollerBlinds()
 	selectedDeviceCount += processSelectedRollerShutters()
+	selectedDeviceCount += processSelectedRollerShuttersWithLowSpeedManagementIOComponent()
 	selectedDeviceCount += processSelectedSwitches()
 
 	if (selectedDeviceCount == 0){
@@ -235,6 +240,55 @@ def processSelectedRollerShutters() {
 	return selectedRollerShutters.size()
 }
 
+def processSelectedRollerShuttersWithLowSpeedManagementIOComponent() {
+	debug("processSelectedRollerShuttersWithLowSpeedManagementIOComponent()")
+
+	if (!settings.selectedRollerShutterWithLowSpeedManagementIOComponentNames){
+		settings.selectedRollerShutterWithLowSpeedManagementIOComponentNames = []
+	}
+
+	log.debug("selectedRollerShutterWithLowSpeedManagementIOComponentNames $selectedRollerShutterWithLowSpeedManagementIOComponentNames")
+	def selectedRollerShuttersWithLowSpeedManagementIOComponent = selectedRollerShutterWithLowSpeedManagementIOComponentNames.each { dni ->
+		def rollerShutterWithLowSpeedManagementIOComponent = atomicState.rollerShuttersWithLowSpeedManagementIOComponent[dni]
+
+		if (!rollerShutterWithLowSpeedManagementIOComponent) {
+			debug("initialize: rollerShuttersWithLowSpeedManagementIOComponent: ${atomicState.rollerShuttersWithLowSpeedManagementIOComponent}")
+
+			def errorMessage = "Roller Shutter With Low Speed Management IO Component '$dni' not found."
+			log.error(errorMessage)
+
+			throw new org.json.JSONException(errorMessage)
+		}
+
+		debug("rollerShutterWithLowSpeedManagementIOComponent $rollerShutterWithLowSpeedManagementIOComponent")
+
+		def deviceName = getDeviceName(rollerShutterWithLowSpeedManagementIOComponent)
+		def deviceId = getDeviceId(rollerShutterWithLowSpeedManagementIOComponent)
+
+		def virtualDevice = getChildDevice(dni)
+
+		if (virtualDevice) {
+			debug("Found ${virtualDevice.name} with network id '$dni' already exists.")
+		} else {
+			def deviceTypeName = "TaHoma Roller Shutter With Low Speed Management IO Component"
+
+			debug("Creating new '$deviceTypeName' device '$deviceName' with id '$dni'.")
+
+			virtualDevice = addChildDevice(app.namespace, deviceTypeName, dni, null, ["name": deviceId, "label": deviceName, "completedSetup": true])
+
+			debug("virtualDevice ${virtualDevice}")
+
+			debug("Created '$deviceName' with network id '$dni'.")
+		}
+
+		return virtualDevice
+	}
+
+	debug("User selected ${selectedRollerShuttersWithLowSpeedManagementIOComponent.size()} Roller Shutters With Low Speed Management IO Component.")
+
+	return selectedRollerShuttersWithLowSpeedManagementIOComponent.size()
+}
+
 def processSelectedSwitches() {
 	debug("processSelectedSwitches()")
 
@@ -288,15 +342,17 @@ def deleteUnselectedDevices() {
 
 	def delete
 
-	if ((settings.selectedInteriorRollerBlindNames && settings.selectedInteriorRollerBlindNames.size() > 0) || 
-			(settings.selectedRollerShutterNames && settings.selectedRollerShutterNames.size() > 0) || 
-			(settings.selectedSwitchNames && settings.selectedSwitchNames.size() > 0)) {
+	if ((settings.selectedInteriorRollerBlindNames && settings.selectedInteriorRollerBlindNames.size() > 0) 
+		|| (settings.selectedRollerShutterNames && settings.selectedRollerShutterNames.size() > 0) 
+		|| (settings.selectedRollerShutterWithLowSpeedManagementIOComponentNames && settings.selectedRollerShutterWithLowSpeedManagementIOComponentNames.size() > 0) 
+		|| (settings.selectedSwitchNames && settings.selectedSwitchNames.size() > 0)) {
 		debug("Delete devices not selected by user.")
 
 		delete = getChildDevices().findAll { 
-			!settings.selectedInteriorRollerBlindNames.contains(it.deviceNetworkId) && 
-			!settings.selectedRollerShutterNames.contains(it.deviceNetworkId) && 
-			!settings.selectedSwitchNames.contains(it.deviceNetworkId) 
+			!settings.selectedInteriorRollerBlindNames.contains(it.deviceNetworkId) &&
+            !settings.selectedRollerShutterNames.contains(it.deviceNetworkId) &&
+            !settings.selectedRollerShutterWithLowSpeedManagementIOComponentNames.contains(it.deviceNetworkId) &&
+            !settings.selectedSwitchNames.contains(it.deviceNetworkId)
 		}
 	} else {
 		delete = getAllChildDevices()
@@ -430,6 +486,20 @@ def getRollerShutterNames() {
 	return rollerShutterNames
 }
 
+def getRollerShutterWithLowSpeedManagementIOComponentNames() {
+	debug("getRollerWithLowSpeedManagementIOComponentShutterNames()")
+
+	def rollerShutterWithLowSpeedManagementIOComponentNames = [:]
+
+	atomicState.rollerShuttersWithLowSpeedManagementIOComponent.each { dni, rollerShutterWithLowSpeedManagementIOComponent ->
+		rollerShutterWithLowSpeedManagementIOComponentNames[dni] = getDeviceName(rollerShutterWithLowSpeedManagementIOComponent)
+	}
+
+	debug("rollerShutterWithLowSpeedManagementIOComponentNames $rollerShutterWithLowSpeedManagementIOComponentNames")
+
+	return rollerShutterWithLowSpeedManagementIOComponentNames
+}
+
 def getSwitchNames() {
 	debug("getSwitchNames()")
 
@@ -442,6 +512,55 @@ def getSwitchNames() {
 	debug("switchNames $switchNames")
 
 	return switchNames
+}
+
+def poll() {
+	debug("poll()")
+
+	updateDevices()
+
+	updateChildDevices()
+}
+
+def refresh() {
+	debug("refresh()")
+
+	poll()
+}
+
+def updateChildDevices() {
+	debug("updateChildDevices()")
+
+	try {
+		def childDevices = getChildDevices()
+
+		debug("updateChildDevices childDevices: ${childDevices}")
+
+		childDevices.each { childDevice ->
+			try {
+				def eventData = [:]
+
+				def deviceData = atomicState.rollerShuttersWithLowSpeedManagementIOComponent[childDevice.deviceNetworkId]
+
+				if (deviceData && deviceData.states) {
+					deviceData.states.each { state ->
+                    	//log.debug("state $state")
+						if (state.name == "core:ClosureState") {
+							eventData["level"] = state.value
+						}
+					}
+				}
+
+				log.debug("Event data ${eventData}")
+
+				childDevice.generateEvent(eventData)
+			} catch (Exception e) {
+				log.error("Exception updating device ${childDevice.name}: ${e}")
+			}
+		}
+	} catch (Exception e) {
+        log.error("Exception updating devices: ${e}")
+    }
 }
 
 def updateDevices() {
@@ -464,33 +583,39 @@ def updateDevices() {
 
 			if (resp.status == 200 && resp.data) {
 				def rollerShutters = [:]
+				def rollerShuttersWithLowSpeedManagementIOComponent = [:]
 				def interiorRollerBlinds = [:]
 				def switches = [:]
 
+				//def slurper = new groovy.json.JsonSlurper()
+				//def result = slurper.parseText('{"devices": [{"creationTime": 1524144461000,      "lastUpdateTime": 1524144461000,      "label": "Kidsroom east",      "deviceURL": "rts://1201-2886-4711/16776321",      "shortcut": false,      "controllableName": "io:RollerShutterWithLowSpeedManagementIOComponent",      "states": [        {          "name": "core:NameState",          "type": 3,          "value": "Kidsroom east"        },        {          "name": "core:PriorityLockTimerState",          "type": 1,          "value": 0        },        {          "name": "core:StatusState",          "type": 3,          "value": "available"        },        {          "name": "core:RSSILevelState",          "type": 2,          "value": 80.0        },        {          "name": "core:ClosureState",          "type": 1,          "value": 66        },        {          "name": "core:OpenClosedState",          "type": 3,          "value": "open"        }      ],      "attributes": [],      "available": true,      "enabled": true,      "placeOID": "45bf640c-b9fb-4703-8ec6-4d88e49abd2d",      "widget": "PositionableRollerShutterWithLowSpeedManagement",      "type": 1,      "oid": "56f526d7-cffc-4460-91a8-3bb53b6ed0ca",      "uiClass": "RollerShutter" }]}')
+				//resp.data.devices = result.devices
 				if (resp.data.devices) {
 					resp.data.devices.each { device ->
-						if (device.controllableName == 'rts:BlindRTSComponent') {
-							def dni = [app.id, getDeviceId(device)].join('.')
+                        //debug("-----------xxxxxxxxxxx---------- ${device}")
 
+						def dni = [app.id, getDeviceId(device)].join('.')
+
+						if (device.controllableName == 'rts:BlindRTSComponent') {
 							interiorRollerBlinds[dni] = device
 						} else if (device.controllableName == 'rts:RollerShutterRTSComponent') {
-							def dni = [app.id, getDeviceId(device)].join('.')
-
 							rollerShutters[dni] = device
 						} else if (device.controllableName == 'rts:OnOffRTSComponent') {
-							def dni = [app.id, getDeviceId(device)].join('.')
-
 							switches[dni] = device
+						} else if (device.controllableName == 'io:RollerShutterWithLowSpeedManagementIOComponent') {
+							rollerShuttersWithLowSpeedManagementIOComponent[dni] = device
 						}
 					}
 				}
 
 				debug("updateDevices(): interiorRollerBlinds ${interiorRollerBlinds}")
 				debug("updateDevices(): rollerShutters ${rollerShutters}")
+				debug("updateDevices(): rollerShuttersWithLowSpeedManagementIOComponent ${rollerShuttersWithLowSpeedManagementIOComponent}")
 				debug("updateDevices(): switches ${switches}")
 
 				atomicState.interiorRollerBlinds = interiorRollerBlinds
 				atomicState.rollerShutters = rollerShutters
+				atomicState.rollerShuttersWithLowSpeedManagementIOComponent = rollerShuttersWithLowSpeedManagementIOComponent
 				atomicState.switches = switches
 				atomicState.devicesUpdatedAt = now()
 			}
@@ -507,12 +632,12 @@ def updateDevices() {
 	}
 }
 
-def executeRollerShutterCommand(commandId, rollerShutterId, label) {
-	debug("executeRollerShutterCommand($commandId, $rollerShutterId, $label)")
+def executeRollerShutterCommand(commandId, rollerShutterId, label, parameters = "") {
+	debug("executeRollerShutterCommand($commandId, $rollerShutterId, $label, $parameters)")
 
 	label = "$label ($rollerShutterId; SmartThings $smartAppVersion)";
 
-	def body = "{\"label\":\"$label\",\"actions\":[{\"deviceURL\":\"$rollerShutterId\",\"commands\":[{\"name\":\"$commandId\",\"parameters\":[]}]}]}"
+	def body = "{\"label\":\"$label\",\"actions\":[{\"deviceURL\":\"$rollerShutterId\",\"commands\":[{\"name\":\"$commandId\",\"parameters\":[$parameters]}]}]}"
 
 	def requestParams = [
 		method: 'POST',
@@ -532,6 +657,8 @@ def executeRollerShutterCommand(commandId, rollerShutterId, label) {
 		httpPostJson(requestParams) { resp ->
 			if (resp.status == 200 && resp.data) {
 				debug("executeRollerShutterCommand(): resp.data ${resp.data}")
+
+				refresh()
 
 				executionId = resp.data.execId
 			}
