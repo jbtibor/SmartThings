@@ -13,6 +13,7 @@ How to install:
 - In mobile app open Marketplace -> SmartApps -> My Apps, tap TaHoma® by Somfy and follow instructions.
 
 Supported devices:
+
 RTS Blind
 - TaHomaRollerShutter.DeviceHandler.groovy
 
