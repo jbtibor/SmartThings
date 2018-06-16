@@ -13,7 +13,7 @@
  *  Author: Tibor Jakab-Barthi
  */
 metadata {
-	definition (name: "TaHoma Roller Shutter With Low Speed Management IO Component", namespace: "jbt", author: "Tibor Jakab-Barthi") {
+	definition (name: "TaHoma Roller Shutter IO", namespace: "jbt", author: "Tibor Jakab-Barthi") {
 		capability "Configuration"
 		capability "Refresh"
 		capability "Switch"
@@ -86,7 +86,7 @@ metadata {
 		}
 
 		main ("windowShadeMain")
-		details(["windowShade", "levelSliderControl", "open", "my", "close", "identify", "stop", "refresh"])
+		details(["windowShade", "open", "my", "close", "identify", "stop", "refresh"])
 	}
 }
 
@@ -98,7 +98,7 @@ preferences {
 }
 
 def getDeviceTypeVersion() {
-	"1.0.20180604" 
+	"1.0.20180612" 
 }
 
 def debug(message) {
@@ -219,6 +219,12 @@ def sendAllEvents(percent) {
 	sendEvent(name: "level", value: percent)
 }
 
+def setCapabilities(newCapabilities) {
+	debug("setCapabilities($newCapabilities)")
+
+	state.supportsDiscrete = newCapabilities.supportsDiscrete
+}
+
 def setLevel(percent) {
 	debug("setLevel($percent)")
     
@@ -234,7 +240,7 @@ def setLevelInternal(percent, silent = true) {
 	def command = ""
 	def parameters = ""
 
-	if (silent) {
+	if (silent && state.supportsDiscrete) {
 		command = "setClosureAndLinearSpeed"
 		parameters = "$percent,\"lowspeed\""
 	} else {
