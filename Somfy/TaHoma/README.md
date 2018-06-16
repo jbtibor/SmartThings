@@ -15,11 +15,11 @@ How to install:
 Supported devices:
 
 RTS Blind
-- TaHomaRollerShutter.DeviceHandler.groovy
+- TaHomaRollerShutterRTS.DeviceHandler.groovy
 
 RTS Switch
 - TaHomaSwitch.DeviceHandler.groovy
 
 IO Blind
-- With composite control UI: TaHomaRollerShutterWithLowSpeedManagementIOComponentNew.DeviceHandler.groovy
+- With composite control UI: TaHomaRollerShutterIO.DeviceHandler.groovy
 - With Tahoma-like UI: TaHomaRollerShutterWithLowSpeedManagementIOComponent.DeviceHandler.groovy
