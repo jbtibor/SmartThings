@@ -53,8 +53,8 @@ def settingsPage() {
 	dynamicPage(name: "settingsPage", title: "", install: true, uninstall: true) {
 		section ("TaHoma® devices to control", hideWhenEmpty: true) {
 			input(name: "selectedInteriorRollerBlindNames", type: "enum", title: "Interior Roller Blinds", description: "Tap to choose", required: false, multiple: true, metadata: [values: interiorRollerBlindNames], displayDuringSetup: true)
-			input(name: "selectedRollerShutterNames", type: "enum", title: "Roller Shutters", description: "Tap to choose", required: false, multiple: true, metadata: [values: rollerShutterNames], displayDuringSetup: true)
-			input(name: "selectedRollerShutterWithLowSpeedManagementIOComponentNames", type: "enum", title: "Roller Shutters With Low Speed Management IO Component", description: "Tap to choose", required: false, multiple: true, metadata: [values: rollerShutterWithLowSpeedManagementIOComponentNames], displayDuringSetup: true)
+			input(name: "selectedRollerShutterNames", type: "enum", title: "Roller Shutters RTS", description: "Tap to choose", required: false, multiple: true, metadata: [values: rollerShutterNames], displayDuringSetup: true)
+			input(name: "selectedRollerShutterWithLowSpeedManagementIOComponentNames", type: "enum", title: "Roller Shutters IO", description: "Tap to choose", required: false, multiple: true, metadata: [values: rollerShutterWithLowSpeedManagementIOComponentNames], displayDuringSetup: true)
 			input(name: "selectedSwitchNames", type: "enum", title: "Switches", description: "Tap to choose", required: false, multiple: true, metadata: [values: switchNames], displayDuringSetup: true)
 		}
 	}
@@ -66,7 +66,7 @@ def getCloudApiEndpoint() {
 }
 
 def getSmartAppVersion() {
-	"1.3.20180521" 
+	"1.3.20180612" 
 }
 
 // Device specific methods
@@ -173,7 +173,7 @@ def processSelectedInteriorRollerBlinds() {
 		if (virtualDevice) {
 			debug("Found ${virtualDevice.name} with network id '$dni' already exists.")
 		} else {
-			def deviceTypeName = "TaHoma Roller Shutter"
+			def deviceTypeName = "TaHoma Roller Shutter RTS"
 
 			debug("Creating new '$deviceTypeName' device '$deviceName' with id '$dni'.")
 
@@ -221,7 +221,7 @@ def processSelectedRollerShutters() {
 		if (virtualDevice) {
 			debug("Found ${virtualDevice.name} with network id '$dni' already exists.")
 		} else {
-			def deviceTypeName = "TaHoma Roller Shutter"
+			def deviceTypeName = "TaHoma Roller Shutter RTS"
 
 			debug("Creating new '$deviceTypeName' device '$deviceName' with id '$dni'.")
 
@@ -270,11 +270,16 @@ def processSelectedRollerShuttersWithLowSpeedManagementIOComponent() {
 		if (virtualDevice) {
 			debug("Found ${virtualDevice.name} with network id '$dni' already exists.")
 		} else {
-			def deviceTypeName = "TaHoma Roller Shutter With Low Speed Management IO Component"
+			def deviceTypeName = "TaHoma Roller Shutter IO"
 
 			debug("Creating new '$deviceTypeName' device '$deviceName' with id '$dni'.")
 
+			def supportsDiscrete = rollerShutterWithLowSpeedManagementIOComponent.controllableName == 'io:RollerShutterWithLowSpeedManagementIOComponent'
+
+			def capabilities = [supportsDiscrete: supportsDiscrete]
+
 			virtualDevice = addChildDevice(app.namespace, deviceTypeName, dni, null, ["name": deviceId, "label": deviceName, "completedSetup": true])
+			virtualDevice.setCapabilities(capabilities)
 
 			debug("virtualDevice ${virtualDevice}")
 
@@ -589,6 +594,7 @@ def updateDevices() {
 
 				//def slurper = new groovy.json.JsonSlurper()
 				//def result = slurper.parseText('{"devices": [{"creationTime": 1524144461000,      "lastUpdateTime": 1524144461000,      "label": "Kidsroom east",      "deviceURL": "rts://1201-2886-4711/16776321",      "shortcut": false,      "controllableName": "io:RollerShutterWithLowSpeedManagementIOComponent",      "states": [        {          "name": "core:NameState",          "type": 3,          "value": "Kidsroom east"        },        {          "name": "core:PriorityLockTimerState",          "type": 1,          "value": 0        },        {          "name": "core:StatusState",          "type": 3,          "value": "available"        },        {          "name": "core:RSSILevelState",          "type": 2,          "value": 80.0        },        {          "name": "core:ClosureState",          "type": 1,          "value": 66        },        {          "name": "core:OpenClosedState",          "type": 3,          "value": "open"        }      ],      "attributes": [],      "available": true,      "enabled": true,      "placeOID": "45bf640c-b9fb-4703-8ec6-4d88e49abd2d",      "widget": "PositionableRollerShutterWithLowSpeedManagement",      "type": 1,      "oid": "56f526d7-cffc-4460-91a8-3bb53b6ed0ca",      "uiClass": "RollerShutter" }]}')
+				//def result = slurper.parseText('{"devices": [{"creationTime": 1524144461000,      "lastUpdateTime": 1524144461000,      "label": "IO test blind",      "deviceURL": "rts://1201-2886-4711/16776321",      "shortcut": false,      "controllableName": "io:RollerShutterGenericIOComponent",      "states": [        {          "name": "core:NameState",          "type": 3,          "value": "IO test blind"        },        {          "name": "core:PriorityLockTimerState",          "type": 1,          "value": 0        },        {          "name": "core:StatusState",          "type": 3,          "value": "available"        },        {          "name": "core:RSSILevelState",          "type": 2,          "value": 80.0        },        {          "name": "core:ClosureState",          "type": 1,          "value": 66        },        {          "name": "core:OpenClosedState",          "type": 3,          "value": "open"        }      ],      "attributes": [],      "available": true,      "enabled": true,      "placeOID": "45bf640c-b9fb-4703-8ec6-4d88e49abd2d",      "widget": "PositionableRollerShutterWithLowSpeedManagement",      "type": 1,      "oid": "56f526d7-cffc-4460-91a8-3bb53b6ed0ca",      "uiClass": "RollerShutter" }]}')
 				//resp.data.devices = result.devices
 				if (resp.data.devices) {
 					resp.data.devices.each { device ->
@@ -603,6 +609,8 @@ def updateDevices() {
 						} else if (device.controllableName == 'rts:OnOffRTSComponent') {
 							switches[dni] = device
 						} else if (device.controllableName == 'io:RollerShutterWithLowSpeedManagementIOComponent') {
+							rollerShuttersWithLowSpeedManagementIOComponent[dni] = device
+						} else if (device.controllableName == 'io:RollerShutterGenericIOComponent') {
 							rollerShuttersWithLowSpeedManagementIOComponent[dni] = device
 						}
 					}
