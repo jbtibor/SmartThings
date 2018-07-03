@@ -102,8 +102,8 @@ def close() {
 	}
 }
 
-def generateEvent(Map eventData){
-	debug("generateEvent(${eventData})")
+def generateEvents(Map eventData){
+	debug("generateEvents(${eventData})")
 
     eventData.each { name, value ->
 		debug("sendEvent(name: '$name', value: '$value')")
@@ -111,8 +111,6 @@ def generateEvent(Map eventData){
 		if (name == "level") {
 			sendAllEvents(value)
 		}
-
-        sendEvent(name: name, value: value)
     }
 }
 
@@ -124,7 +122,7 @@ def identify() {
 	} else {
 		stop()
 
-		state.executionId = parent.executeRollerShutterCommand("identify", device.name, "Identify ${device.label}")
+		state.executionId = parent.executeCommand("identify", device.name, "Identify ${device.label}")
 
 		sendEvent(name: "windowShade", value: "closed")
 		sendEvent(name: "switch", value: "off")
@@ -165,7 +163,7 @@ def presetPosition() {
 	} else {
 		stop()
 
-		state.executionId = parent.executeRollerShutterCommand("my", device.name, "My position ${device.label}")
+		state.executionId = parent.executeCommand("my", device.name, "My position ${device.label}")
 
 		sendEvent(name: "windowShade", value: "partially open")
 		sendEvent(name: "switch", value: "on")
@@ -195,7 +193,7 @@ def sendAllEvents(percent) {
 		sendEvent(name: "switch", value: "on")
 	}
 
-	sendEvent(name: "level", value: percent)
+	sendEvent(name: "level", value: percent, unit: "%")
 }
 
 def setLevel(percent) {
@@ -226,7 +224,7 @@ def setLevelInternal(percent, silent = true) {
 	def rollerShutterId = device.name
 	def label = device.label
 
-	def executionId = parent.executeRollerShutterCommand(command, rollerShutterId, "Set level $label", parameters)
+	def executionId = parent.executeCommand(command, rollerShutterId, "Set level $label", parameters)
 
 	debug("END: setLevelInternal executionId: ${executionId}")
 
