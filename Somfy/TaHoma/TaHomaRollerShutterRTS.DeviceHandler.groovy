@@ -13,9 +13,10 @@
  *  Author: Tibor Jakab-Barthi
  */
 metadata {
-	definition (name: "TaHoma Roller Shutter", namespace: "jbt", author: "Tibor Jakab-Barthi") {
+	definition (name: "TaHoma Roller Shutter RTS", namespace: "jbt", author: "Tibor Jakab-Barthi") {
 		capability "Configuration"
 		capability "Switch"
+		capability "Switch Level"
 		capability "Window Shade"
 
 		command "identify"
@@ -63,25 +64,13 @@ preferences {
 }
 
 def getDeviceTypeVersion() {
-	"1.2.20180418" 
+	"1.2.20180521" 
 }
 
 def debug(message) {
 	if (parent.settings.debugMode) {
-		log.debug("DT $deviceTypeVersion: $message")
+		log.debug("DH $deviceTypeVersion: $message")
 	}
-}
-
-def setLevel(percent) {
-	debug("setLevel($percent)")
-    
-    if (percent == "0") {
-    	close()
-    } else if (percent == "100") {
-    	open()
-    } else {
-    	presetPosition()
-    }
 }
 
 def close() {
@@ -98,6 +87,10 @@ def close() {
 
 		debug("END: close executionId: ${state.executionId}")
 	}
+}
+
+def generateEvents(Map eventData) {
+	debug("generateEvents(${eventData})")
 }
 
 def identify() {
@@ -146,6 +139,18 @@ def presetPosition() {
 
 		debug("END: presetPosition executionId: ${state.executionId}")
 	}
+}
+
+def setLevel(percent) {
+	debug("setLevel($percent)")
+    
+    if (percent == "0") {
+    	close()
+    } else if (percent == "100") {
+    	open()
+    } else {
+    	presetPosition()
+    }
 }
 
 def stop() {
