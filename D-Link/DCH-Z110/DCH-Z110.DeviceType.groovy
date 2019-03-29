@@ -1,5 +1,5 @@
 /**
- *  Copyright (c) 2016 Tibor Jakab-Barthi
+ *  Copyright (c) 2016-2019 Tibor Jakab-Barthi
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -99,13 +99,14 @@ metadata {
 }
 
 def parse(String description) {
-	log.debug "parse raw '$description'"
+	log.debug "parse raw 1 '$description'"
 
 	def result = []
 	if (description.startsWith("Err 106")) {
 		if (state.sec) {
 			log.debug description
 		} else {
+			log.debug "parse raw 2 Err 106 - state.sec = false"
 			result << createEvent(
 				descriptionText: "This sensor failed to complete the network security key exchange. If you are unable to control it via SmartThings, you must remove it from your network and add it again.",
 				eventType: "ALERT",
@@ -115,87 +116,26 @@ def parse(String description) {
 			)
 		}
 	} else if (description != "updated") {
+		log.debug "parse raw 3 trying to parse '$description'"
+
+		if (zwave == null) {
+			log.debug "parse raw 4 zwave is null"
+		}
+
 		def cmd = zwave.parse(description)
 
 		log.debug "zwave.parse returned '$cmd'"
 
-		if (cmd instanceof physicalgraph.zwave.commands.multicmdv1.MultiCmdEncap) {
-			// HACK: Until SmartThings implements MultiCmdEncap.
-			log.debug "parse found MultiCmdEncap"
-			result += parseMultiCmdEncapString(description)
-		} else if (cmd) {
-			result += zwaveEvent(cmd)
+        if (cmd) {
+            def event = zwaveEvent(cmd)
+
+			result += event
 		}
 	}
 
 	log.debug "parsed '$description' to ${result.inspect()}"
 
 	return result
-}
-
-def parseMultiCmdEncapString(description) {
-	log.debug "parseMultiCmdEncapString($description)"
-
-	def payload = []
-
-	def payloadStart = description.indexOf("payload: ") + 9
-
-	description.substring(payloadStart).tokenize(" ").eachWithIndex { it, index ->
-		if (index > 2) {
-			payload << Integer.parseInt("$it", 16)
-		}
-	}
-
-	def events = parseMultiCmdEncapBytes(payload)
-
-	return events
-}
-
-def parseMultiCmdEncapBytes(bytes) {
-	log.debug "parseMultiCmdEncapBytes($bytes)"
-
-	def results = []
-
-	def zwDeviceId = "MultiCmdEncap" // Irrelevant for parse so can be anything.
-	def bytesLastIndex = bytes.size() - 1
-	def offset = 0
-
-	def commandCount = getMessagePayloadByte(bytes, offset)
-
-	offset++
-
-	for (int commandIndex = 0; commandIndex < commandCount; commandIndex++) {
-		def messageLength = getMessagePayloadByte(bytes, offset)
-
-		def commandClassCode = getMessagePayloadByteAsHexString(bytes, offset + 1)
-		def commandTypeCode = getMessagePayloadByteAsHexString(bytes, offset + 2)
-
-        def payloadStartIndex = offset + 3
-		def payloadEndIndex = offset + messageLength < bytes.size() - 1 ? offset + messageLength : bytes.size() - 1
-		def payload = ""
-
-		if (payloadStartIndex <= bytesLastIndex && payloadEndIndex <= bytesLastIndex) {
-			for (int payloadIndex = payloadStartIndex; payloadIndex <= payloadEndIndex; payloadIndex++) {
-				payload += getMessagePayloadByteAsHexString(bytes, payloadIndex) + " "
-			}
-		}
-
-		def singleCommandDescription = "zw device: $zwDeviceId, command: $commandClassCode$commandTypeCode, payload: $payload"
-
-		results += parse(singleCommandDescription)
-
-		offset += messageLength + 1
-	}
-
-	return results
-}
-
-String getMessagePayloadByteAsHexString(payload, index) {
-	return getMessagePayloadByte(payload, index).encodeAsHex().toUpperCase()
-}
-
-int getMessagePayloadByte(payload, index) {
-	return payload[index] & 0xFF;
 }
 
 def updated() {
@@ -219,10 +159,33 @@ def updated() {
 
 def configure() {
 	log.debug "configure()"
-	delayBetween([
+
+	def cmds = [
 		zwave.manufacturerSpecificV2.manufacturerSpecificGet().format(),
-		batteryGetCommand()
-	], 6000)
+		batteryGetCommand(),
+        zwave.configurationV1.configurationGet(parameterNumber: 12).format(), // Auto Report Illumination Time
+		zwave.configurationV1.configurationGet(parameterNumber: 13).format(), // Auto Report Temperature Time
+		zwave.configurationV1.configurationGet(parameterNumber: 20).format(), // Auto Report Tick Interval
+	]
+
+	if (settings.autoReportIlluminationTime) {
+    	def autoReportIlluminationTime = (settings.autoReportIlluminationTime).toInteger()
+    	cmds += zwave.configurationV1.configurationSet(configurationValue: [autoReportIlluminationTime], parameterNumber: 12, size: 1).format()
+    }
+
+	if (settings.autoReportTemperatureTime) {
+    	def autoReportTemperatureTime = (settings.autoReportTemperatureTime).toInteger()
+    	cmds += zwave.configurationV1.configurationSet(configurationValue: [autoReportTemperatureTime], parameterNumber: 13, size: 1).format()
+    }
+
+	if (settings.autoReportTickInterval) {
+    	def autoReportTickInterval = (settings.autoReportTickInterval).toInteger()
+    	cmds += zwave.configurationV1.configurationSet(configurationValue: [autoReportTickInterval], parameterNumber: 20, size: 1).format()
+    }
+
+	delayBetween(cmds, 6000)
+
+	log.debug "configure() $cmds"
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
@@ -241,11 +204,54 @@ def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
 
 	state.lastbat = now()
 
-	results << createEvent(map)
+	results += createEvent(map)
 
-	results << response(zwave.wakeUpV1.wakeUpNoMoreInformation())
+	results += response(zwave.wakeUpV1.wakeUpNoMoreInformation())
 
 	return results
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
+	log.debug "zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport $cmd)"
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport cmd) {
+	log.debug "zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport $cmd)"
+
+	def map = [:]
+
+	def value = cmd.configurationValue[0]
+
+	switch (cmd.parameterNumber) {
+        case 5:
+			map.name = "Operation Mode"
+			map.value = value
+			break
+		case 12:
+			map.name = "Auto Report Illumination Time"
+            map.value = value
+			break
+		case 13:
+			map.name = "Auto Report Temperature Time"
+			map.value = value
+			break
+        case 20:
+			map.name = "Auto Report Tick Interval"
+			map.value = value
+			break
+		default:
+			map.name = cmd.parameterNumber
+			map.value = value
+			break
+	}
+
+    log.debug " Configuration: ${map}"
+
+	sendEvent(map)
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.deviceresetlocallyv1.DeviceResetLocallyNotification cmd) {
+	log.debug "zwaveEvent(physicalgraph.zwave.commands.deviceresetlocallyv1.DeviceResetLocallyNotification $cmd)"
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerSpecificReport cmd) {
@@ -259,15 +265,20 @@ def zwaveEvent(physicalgraph.zwave.commands.manufacturerspecificv2.ManufacturerS
 
 	retypeBasedOnMSR()
 
-	results << createEvent(descriptionText: "$device.displayName MSR: $msr", isStateChange: false)
+	results += createEvent(descriptionText: "$device.displayName MSR: $msr", isStateChange: false)
 
-	results << response(batteryGetCommand())
+	results += response(batteryGetCommand())
 
 	return results
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.multicmdv1.MultiCmdEncap cmd) {
 	log.debug "zwaveEvent(physicalgraph.zwave.commands.multicmdv1.MultiCmdEncap $cmd)"
+
+    cmd.encapsulatedCommands().collect { encapsulatedCommand ->
+    	log.debug "MultiCmdEncap encapsulatedCommand: $encapsulatedCommand"
+		zwaveEvent(encapsulatedCommand)
+	}.flatten()
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cmd) {
@@ -280,12 +291,12 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 		def currentValue = device.currentValue("contact")
 
 		if (cmd.event == 0x16) {
-			log.debug "open"
-			events << createEvent(name: "contact", value: "open", descriptionText: "$device.displayName is open.", translatable: true)
+			log.debug "NotificationReport: open"
+			events += createEvent(name: "contact", value: "open", descriptionText: "$device.displayName is open.", translatable: true)
 			openCloseChanged = currentValue != "open"
 		} else if (cmd.event == 0x17) {
-			log.debug "closed"
-			events << createEvent(name: "contact", value: "closed", descriptionText: "$device.displayName is closed.", translatable: true)
+			log.debug "NotificationReport: closed"
+			events += createEvent(name: "contact", value: "closed", descriptionText: "$device.displayName is closed.", translatable: true)
 			openCloseChanged = currentValue != "closed"
 		} else {
 			log.debug "Unknown contact event '${cmd.event}'."
@@ -294,18 +305,20 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 		if (openCloseChanged) {
 			def dateTime = new Date()
 			def sensorStateChangedDate = dateTime.format("yyyy-MM-dd HH:mm:ss", location.timeZone)
-			events << createEvent(name: "sensorStateChangedDate", value: sensorStateChangedDate, descriptionText: "$device.displayName open/close state changed at $sensorStateChangedDate.", translatable: true)
+			events += createEvent(name: "sensorStateChangedDate", value: sensorStateChangedDate, descriptionText: "$device.displayName open/close state changed at $sensorStateChangedDate.", translatable: true)
 		}
 	} else if (cmd.notificationType == 0x07) {
 		if (cmd.event == 0x03) {
 			log.debug "tamper"
-			events << createEvent(name: "tamper", value: "detected", descriptionText: "$device.displayName tampered.", translatable: true)
+			events += createEvent(name: "tamper", value: "detected", descriptionText: "$device.displayName tampered.", translatable: true)
 		} else {
 			log.debug "Unknown tamper event '${cmd.event}'."
 		}
 	} else {
 		log.debug "Unknown notification type '${cmd.notificationType}'."
 	}
+
+	log.debug "NotificationReport: events $events"
 
 	return events
 }
@@ -322,12 +335,10 @@ def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulat
 
 		state.sec = 1
 
-		if (encapsulatedCommand instanceof physicalgraph.zwave.commands.multicmdv1.MultiCmdEncap) {
-			events += parseMultiCmdEncapBytes(cmd.commandByte)
-		} else {
-			events += zwaveEvent(encapsulatedCommand)
-		}
+		events += zwaveEvent(encapsulatedCommand)
 	}
+
+	log.debug "SecurityMessageEncapsulation: events $events"
 
 	return events
 }
@@ -340,18 +351,18 @@ def zwaveEvent(physicalgraph.zwave.commands.sensorbinaryv1.SensorBinaryReport cm
 	if (cmd.sensorType == 0x08) {
 		if (cmd.sensorValue == 0xFF) {
 			log.debug "tamper"
-			events << createEvent(name: "tamper", value: "detected", descriptionText: "$device.displayName tampered.", translatable: true)
+			events += createEvent(name: "tamper", value: "detected", descriptionText: "$device.displayName tampered.", translatable: true)
 		} else {
 			log.debug "Unknown tamper event '${cmd.sensorValue}'."
 		}
 	}
 	else if (cmd.sensorType == 0x0A) {
 		if (cmd.sensorValue == 0xFF) {
-			log.debug "open"
-			events << createEvent(name: "contact", value: "open", descriptionText: "$device.displayName is open.", translatable: true)
+			log.debug "SensorBinaryReport: open"
+			events += createEvent(name: "contact", value: "open", descriptionText: "$device.displayName is open.", translatable: true)
 		} else if (cmd.sensorValue == 0x00) {
-			log.debug "close"
-			events << createEvent(name: "contact", value: "closed", descriptionText: "$device.displayName is closed.", translatable: true)
+			log.debug "SensorBinaryReport: close"
+			events += createEvent(name: "contact", value: "closed", descriptionText: "$device.displayName is closed.", translatable: true)
 		} else {
 			log.debug "Unknown contact event '${cmd.sensorValue}'."
 		}
@@ -375,12 +386,12 @@ def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelR
 
 		def descriptionText = "$device.displayName temperature was $convertedTemperatureValue°" + getTemperatureScale() + "."
 
-		events << createEvent(name: "temperature", value: convertedTemperatureValue, descriptionText: descriptionText, translatable: true)
+		events += createEvent(name: "temperature", value: convertedTemperatureValue, descriptionText: descriptionText, translatable: true)
 	}
 	else if (cmd.sensorType == 0x03) {
 		def illuminanceValue = cmd.scaledSensorValue
 
-		events << createEvent(name: "illuminance", value: illuminanceValue, descriptionText: "$device.displayName illuminance is $illuminanceValue.", translatable: true)
+		events += createEvent(name: "illuminance", value: illuminanceValue, descriptionText: "$device.displayName illuminance is $illuminanceValue.", translatable: true)
 	}
 
 	return events
@@ -391,18 +402,18 @@ def zwaveEvent(physicalgraph.zwave.commands.wakeupv2.WakeUpNotification cmd) {
 
 	def results = []
 
-	results << createEvent(descriptionText: "${device.displayName} woke up", isStateChange: false)
+	results += createEvent(descriptionText: "${device.displayName} woke up", isStateChange: false)
 
 	if (!state.MSR) {
-		results << zwave.wakeUpV2.wakeUpIntervalSet(seconds: 4 * 3600, nodeid: zwaveHubNodeId).format()
-		results << zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
-		results << "delay 1200"
+		results += zwave.wakeUpV2.wakeUpIntervalSet(seconds: 4 * 3600, nodeid: zwaveHubNodeId).format()
+		results += zwave.manufacturerSpecificV2.manufacturerSpecificGet().format()
+		results += "delay 1200"
 	}
 
 	if (!state.lastbat || now() - state.lastbat > 53 * 60 * 60 * 1000) {
-		results << batteryGetCommand()
+		results += batteryGetCommand()
 	} else {
-		results << zwave.wakeUpV2.wakeUpNoMoreInformation().format()
+		results += zwave.wakeUpV2.wakeUpNoMoreInformation().format()
 	}
 
 	return results
