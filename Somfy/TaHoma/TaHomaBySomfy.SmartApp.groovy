@@ -9,6 +9,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
  *  See the License for the specific language governing permissions and limitations under the License.
+ *  
+ *  Contributer: Joeri Van Herreweghe (vhjoeri): added support for io:VerticalExteriorAwningIOComponent and io:RollerShutterVeluxIOComponent 
  *
  */
 
@@ -309,10 +311,10 @@ def processSelectedRollerShuttersWithLowSpeedManagementIOComponent() {
 
 	log.debug("selectedRollerShutterWithLowSpeedManagementIOComponentNames $selectedRollerShutterWithLowSpeedManagementIOComponentNames")
 	def selectedRollerShuttersWithLowSpeedManagementIOComponent = selectedRollerShutterWithLowSpeedManagementIOComponentNames.each { dni ->
-		def rollerShutterWithLowSpeedManagementIOComponent = atomicState.rollerShuttersWithLowSpeedManagementIOComponent[dni]
+		def rollerShutterWithLowSpeedManagementIOComponent = atomicState.RollerShutterVeluxIOComponent[dni]
 
 		if (!rollerShutterWithLowSpeedManagementIOComponent) {
-			debug("initialize: rollerShuttersWithLowSpeedManagementIOComponent: ${atomicState.rollerShuttersWithLowSpeedManagementIOComponent}")
+			debug("initialize: rollerShuttersWithLowSpeedManagementIOComponent: ${atomicState.RollerShutterVeluxIOComponent}")
 
 			def errorMessage = "Roller Shutter With Low Speed Management IO Component '$dni' not found."
 			log.error(errorMessage)
@@ -582,7 +584,7 @@ def getRollerShutterWithLowSpeedManagementIOComponentNames() {
 
 	def rollerShutterWithLowSpeedManagementIOComponentNames = [:]
 
-	atomicState.rollerShuttersWithLowSpeedManagementIOComponent.each { dni, rollerShutterWithLowSpeedManagementIOComponent ->
+	atomicState.RollerShutterVeluxIOComponent.each { dni, rollerShutterWithLowSpeedManagementIOComponent ->
 		rollerShutterWithLowSpeedManagementIOComponentNames[dni] = getDeviceName(rollerShutterWithLowSpeedManagementIOComponent)
 	}
 
@@ -710,6 +712,12 @@ def updateDevices() {
 						} else if (device.controllableName == 'io:RollerShutterWithLowSpeedManagementIOComponent') {
 							rollerShuttersWithLowSpeedManagementIOComponent[dni] = device
 							rawDeviceData[dni] = device
+						} else if (device.controllableName == 'io:RollerShutterVeluxIOComponent') { //added support for Velux Shutters IO
+							rollerShuttersWithLowSpeedManagementIOComponent[dni] = device
+							rawDeviceData[dni] = device
+						} else if (device.controllableName == 'io:VerticalExteriorAwningIOComponent') { //added support for vertical exterior screens (Somfy IO motors)
+							rollerShuttersWithLowSpeedManagementIOComponent[dni] = device
+							rawDeviceData[dni] = device
 						} else if (device.controllableName == 'io:RollerShutterGenericIOComponent') {
 							rollerShuttersWithLowSpeedManagementIOComponent[dni] = device
 							rawDeviceData[dni] = device
@@ -728,7 +736,7 @@ def updateDevices() {
 				atomicState.lightIOSystemSensors = lightIOSystemSensors
                 atomicState.rawDeviceData = rawDeviceData
 				atomicState.rollerShutters = rollerShutters
-				atomicState.rollerShuttersWithLowSpeedManagementIOComponent = rollerShuttersWithLowSpeedManagementIOComponent
+				atomicState.RollerShutterVeluxIOComponent = rollerShuttersWithLowSpeedManagementIOComponent
 				atomicState.switches = switches
 				atomicState.devicesUpdatedAt = now()
 			}
