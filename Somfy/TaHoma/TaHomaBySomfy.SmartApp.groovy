@@ -11,6 +11,7 @@
  *  See the License for the specific language governing permissions and limitations under the License.
  *  
  *  Contributer: Joeri Van Herreweghe (vhjoeri): added support for io:VerticalExteriorAwningIOComponent and io:RollerShutterVeluxIOComponent 
+ *  Contributer: Jean van Caloen (jvcaloen): added support for rts:ExteriorBlindRTSComponent 
  *
  */
 
@@ -698,6 +699,9 @@ def updateDevices() {
 						def dni = [app.id, getDeviceId(device)].join('.')
 
 						if (device.controllableName == 'rts:BlindRTSComponent') {
+							interiorRollerBlinds[dni] = device
+							rawDeviceData[dni] = device
+						} else if (device.controllableName == 'rts:ExteriorBlindRTSComponent') { //added support for vertical exterior screens (Somfy RTS motor)
 							interiorRollerBlinds[dni] = device
 							rawDeviceData[dni] = device
 						} else if (device.controllableName == 'rts:RollerShutterRTSComponent') {
